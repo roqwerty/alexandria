@@ -7,6 +7,9 @@ Important Functionality:
 - Color manipulation functionality, such as linear interpolation, fast RGB <-> HSV conversion, color-as-data native vector memory storage, and saving to ARGB bitmap.
 - Base64 encoding and decoding using native C++ strings.
 - Base-independent number digit indexing.
+- Multidimensional array index callapse helper functions.
+- General-purpose simple structure serial saving/loading, as well as native vector-of-things support.
+- Many, many easing functions, as well as a Tween helper class to make use of them easily.
 - Really, *really* fast random boolean generator.
 
 For more detail, as well as a current list of included structs, functions, and classes, see the comment at the top of `alexandria.h`.
