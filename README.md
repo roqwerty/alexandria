@@ -1,4 +1,12 @@
 # Alexandria
 A collection and standardization of utilities that I often re-implement.
 
+Important Functionality:
+- Vector3 implementation with operator addition, subtraction, and multiplication, as well as magnitude(), normalize(), cross(), dot(), and angle() functions.
+- Standardization of RGB Color, RGBA ColorAlpha, and HSV ColorHSV structures.
+- Color manipulation functionality, such as linear interpolation, fast RGB <-> HSV conversion, color-as-data memory storage, and saving to ARGB bitmap.
+- Base64 encoding and decoding using native C++ strings.
+- Base-independent number digit indexing.
+- Really, *really* fast random boolean generator.
+
 For more detail, as well as a current list of included structs, functions, and classes, see the comment at the top of `alexandria.h`.
