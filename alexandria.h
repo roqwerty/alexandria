@@ -20,17 +20,20 @@ Structs:
     ColorAlpha: A small RGBA 256-bit color
         Supported functions: ColorAlpha::fromFloat(float), ColorAlpha::toFloat()
     ColorHSV: A small HSV 256-bit color
+    BMPHeader: Header for all Bitmap image data, as well as default values, constructor provided
 
 Functions:
+    void save_bmp(const std::string& filepath, const std::vector<std::vector<ColorAlpha>> pixels, bool origin_at_top_left = true): Saves a ColorAlpha vector as an image
+    std::vector<std::vector<ColorAlpha>> make_image_array(int width, int height): Makes and returns a blank (white) ColorAlpha array of the given dimensions
     std::string load_file(const std::string& filepath): Loads all data within a file and returns as a C++ string
     Color heatmap(float val): Changes a normalized val in range [0.0, 1.0] into a 7-color heatmap color
-    Color randColor(const Color& c1, const Color& c2): Returns a random color linearly interpolated between the two given colors
-    Color linearColor(float percent, const Color& c1, const Color& c2): Returns the color percent of the way through the linear range between the colors. Percent in range [0.0, 1.0]
+    Color random_color(const Color& c1, const Color& c2): Returns a random color linearly interpolated between the two given colors
+    Color linear_color(float percent, const Color& c1, const Color& c2): Returns the color percent of the way through the linear range between the colors. Percent in range [0.0, 1.0]
     Color hsv_to_rgb(ColorHSV hsv): Quickly (not accurately) converts an HSV color to a RGB color
     ColorHSV rgb_to_hsv(Color rgb): Quickly (not accurately) converts an RGB color to a HSV color
     std::string base64_encode(const std::string &in): Converts an input string into base64 data using standard encoding
     std::string base64_decode(const std::string &in): Converts an input string from base64 data using standard encoding
-    std::string trimSpaces(const std::string& source): Trims leading / trailing spaces (and only spaces)
+    std::string trim_spaces(const std::string& source): Trims leading / trailing spaces (and only spaces)
     int get_digit_at_index(int source, int index, int base = 10): Returns the number at the given index of the base number (from right)
     int get_number_length(int source, int base = 10): Returns the length of the given number, in base-10 digits by default
 
@@ -38,6 +41,7 @@ Classes:
     FastBoolGenerator: A really, really fast boolean value generator with pretty random distribution. Use () operator for use.
 
 --- Future Work ---
+Reading from bitmap files, even if only ones written by this file
 General-purpose raycasting structure and library, implemented to be as fast as possible with trig lookup tables and the like
 Big integer work, even if simple addition, subtraction, multiplication, etc., such as #include <boost/multiprecision/cpp_int.hpp>?
 Data type built specifically for tweening with various different smoothing functions and an update deltatime function
@@ -142,7 +146,89 @@ struct ColorHSV {
     uint8_t v;
 };
 
+#pragma pack(push, 1) // Align to exact bytes
+
+// Source: https://solarianprogrammer.com/2018/11/19/cpp-reading-writing-bmp-images/
+// And: https://elcharolin.wordpress.com/2018/11/28/read-and-write-bmp-files-in-c-c/
+
+struct BMPHeader {
+    // Header for all Bitmap image data, as well as default values
+    // Header
+    uint16_t file_type{0x4D42}; // File type, always "BM"
+    uint32_t file_size{0};      // Size of the file in total, in bytes
+    uint16_t reserved1{0};      // Reserved, always 0
+    uint16_t reserved2{0};      // Reserved, always 0
+    uint32_t offset_data{0};    // Start position of pixel data, in bytes from beginning of file
+    // Info header
+    uint32_t size{ 40 };                     // Size of this header (in bytes)
+    int32_t width{ 0 };                      // width of bitmap in pixels
+    int32_t height{ 0 };                     // height of bitmap in pixels
+                                             //       (if positive, bottom-up, with origin in lower left corner)
+                                             //       (if negative, top-down, with origin in upper left corner)
+    uint16_t planes{ 1 };                    // No. of planes for the target device, this is always 1
+    uint16_t bit_count{ 32 };                // No. of bits per pixel, kept at 32
+    uint32_t compression{ 0 };               // 0 or 3 - uncompressed. THIS PROGRAM CONSIDERS ONLY UNCOMPRESSED BMP images
+    uint32_t size_image{ 0 };                // 0 - for uncompressed images
+    int32_t x_pixels_per_meter{ 0 };
+    int32_t y_pixels_per_meter{ 0 };
+    uint32_t colors_used{ 0 };               // No. color indexes in the color table. Use 0 for the max number of colors allowed by bit_count
+    uint32_t colors_important{ 0 };          // No. of colors used for displaying the bitmap. If 0 all colors are required
+    // Color Header
+    uint32_t red_mask{ 0x00ff0000 };         // Bit mask for the red channel
+    uint32_t green_mask{ 0x0000ff00 };       // Bit mask for the green channel
+    uint32_t blue_mask{ 0x000000ff };        // Bit mask for the blue channel
+    uint32_t alpha_mask{ 0xff000000 };       // Bit mask for the alpha channel
+    uint32_t color_space_type{ 0x73524742 }; // Default "sRGB" (0x73524742)
+    uint32_t unused[16]{ 0 };                // Unused data for sRGB color space
+
+    BMPHeader(int image_width, int image_height) {
+        // Constructor, because there's a lot of info here
+        // NOTE that image_height can be negative for origin at upper left
+        int header_size = 14; // Static, kinda hardcoded
+        int color_header_size = 84; // Color table length
+        width = image_width;
+        height = image_height;
+        file_size = width*height*4 + header_size + size + color_header_size; // Total file size
+        offset_data = header_size + size + color_header_size; // Size of the headers in total
+    }
+};
+
+#pragma pack(pop)
+
 ////////// FUNCTIONS //////////
+
+void save_bmp(const std::string& filepath, const std::vector<std::vector<ColorAlpha>> pixels, bool origin_at_top_left = true) {
+    // Saves a double array of pixels as a bitmap image
+    // Filepath should end in ".bmp", pixels should be rectangular, and origin_at_top_left toggles between the expected and bottom left (if false)
+    if (origin_at_top_left) {
+        // Same as usual, just with a negative height the whole way through
+        BMPHeader header(pixels.size(), -pixels[0].size());
+        std::ofstream output(filepath, std::ofstream::binary);
+        output.write((char*)&header, sizeof(header));
+        for (int y = 0; y < -header.height; y++) {
+            for (int x = 0; x < header.width; x++) {
+                output << (char)pixels[x][y].b << (char)pixels[x][y].g << (char)pixels[x][y].r << (char)pixels[x][y].a;
+            }
+        }
+        output.close();
+    } else {
+        // Buisness as usual
+        BMPHeader header(pixels.size(), pixels[0].size());
+        std::ofstream output(filepath, std::ofstream::binary);
+        output.write((char*)&header, sizeof(header));
+        for (int y = 0; y < header.height; y++) {
+            for (int x = 0; x < header.width; x++) {
+                output << (char)pixels[x][y].b << (char)pixels[x][y].g << (char)pixels[x][y].r << (char)pixels[x][y].a;
+            }
+        }
+        output.close();
+    }
+}
+
+std::vector<std::vector<ColorAlpha>> make_image_array(int width, int height) {
+    // Makes and returns a blank (white) ColorAlpha array of the given dimensions
+    return std::vector<std::vector<ColorAlpha>>(width, std::vector<ColorAlpha>(height, {255, 255, 255, 255}));
+}
 
 std::string load_file(const std::string& filepath) {
     // Loads all data within a file and returns as a C++ string
@@ -191,14 +277,14 @@ Color heatmap(float val) {
     return retc;
 }
 
-inline Color randColor(const Color& c1, const Color& c2)
+inline Color random_color(const Color& c1, const Color& c2)
 {
     // Returns a random color linearly interpolated between the two given colors
     float t = (float)rand() / RAND_MAX; // Between 0-1
     return (Color){(uint8_t)(c1.r + (c2.r - c1.r) * t), (uint8_t)(c1.g + (c2.g - c1.g) * t), (uint8_t)(c1.b + (c2.b - c1.b) * t)}; // Compound literal
 }
 
-inline Color linearColor(float percent, const Color& c1, const Color& c2)
+inline Color linear_color(float percent, const Color& c1, const Color& c2)
 {
     // Returns the color percent of the way through the linear range between the colors. Percent in range [0.0, 1.0]
     return (Color){(uint8_t)(c1.r + (c2.r - c1.r) * percent), (uint8_t)(c1.g + (c2.g - c1.g) * percent), (uint8_t)(c1.b + (c2.b - c1.b) * percent)};
@@ -323,7 +409,7 @@ static std::string base64_decode(const std::string &in) {
     return out;
 }
 
-static std::string trimSpaces(const std::string& source) {
+static std::string trim_spaces(const std::string& source) {
     // Trims leading / trailing spaces (and only spaces)
     return source.substr(source.find_first_not_of(" "), source.find_last_not_of(" ") - source.find_first_not_of(" ") + 1);
 }
