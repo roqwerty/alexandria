@@ -23,7 +23,7 @@ Structs:
     BMPHeader: Header for all Bitmap image data, as well as default values, constructor provided
 
 Functions:
-    void save_bmp(const std::string& filepath, const std::vector<std::vector<ColorAlpha>> pixels, bool origin_at_top_left = true): Saves a ColorAlpha vector as an image
+        save_bmp(const std::string& filepath, const std::vector<std::vector<ColorAlpha>> pixels, bool origin_at_top_left = true): Saves a ColorAlpha vector as an image
     std::vector<std::vector<ColorAlpha>> make_image_array(int width, int height): Makes and returns a blank (white) ColorAlpha array of the given dimensions
     std::string load_file(const std::string& filepath): Loads all data within a file and returns as a C++ string
     Color heatmap(float val): Changes a normalized val in range [0.0, 1.0] into a 7-color heatmap color
@@ -36,26 +36,36 @@ Functions:
     std::string trim_spaces(const std::string& source): Trims leading / trailing spaces (and only spaces)
     int get_digit_at_index(int source, int index, int base = 10): Returns the number at the given index of the base number (from right)
     int get_number_length(int source, int base = 10): Returns the length of the given number, in base-10 digits by default
+    unsigned int collapse_index(unsigned int x, unsigned int y, unsigned int width) Collapses a 2D array index into a 1D array index in row-major order
+        also available as collapse_index(x, y, z, width, height) for 3D -> 1D conversion
+    write_pod(), read_pod(), write_pod_vector(), and read_pod_vector() for templated general-purpose simple structure serialization
+    easeIn/Out double functions for every easing function found at https://easings.net/
 
 Classes:
     FastBoolGenerator: A really, really fast boolean value generator with pretty random distribution. Use () operator for use.
+    Tween: A data structure to hold and use the above easing functions to have default behavior as a basic double in range [0.0, 1.0]
+        Has built-in double casting and time stretching, for ease of use
 
 --- Future Work ---
+N-dimensional index to 1-dimensional index collapse
 Reading from bitmap files, even if only ones written by this file
 General-purpose raycasting structure and library, implemented to be as fast as possible with trig lookup tables and the like
-Big integer work, even if simple addition, subtraction, multiplication, etc., such as #include <boost/multiprecision/cpp_int.hpp>?
-Data type built specifically for tweening with various different smoothing functions and an update deltatime function
+BigInt, like https://stackoverflow.com/questions/4507121/c-big-integer
+Make Tween be able to scale output by a scalar value
 */
 
 ////////// SETUP //////////
 
+#define PI 3.14159265358979
+
 #define _USE_MATH_DEFINES
-#include <cmath>
-#include <string>
-#include <vector>
-#include <random>
-#include <iostream>
-#include <fstream>
+#include <cmath> // Math functions, used throughout
+#include <string> // C++ string library, used throughout
+#include <vector> // C++ vector library, used throughout
+#include <random> // Random number generation, used only for "random" functions
+#include <iostream> // C++ stream input/output, used throughout
+#include <fstream> // C++ finestreaming, used for saving/loading functions
+#include <functional> // C++ functions-as-variables, used for some classes
 
 #ifdef USE_ALEXANDRIA_NAMESPACE
 namespace Alexandria {
@@ -64,8 +74,8 @@ namespace Alexandria {
 
 ////////// STRUCTS //////////
 
+// A basic 3D floating-point vector
 struct Vector3 {
-    // A basic 3D floating-point vector
     float x;
     float y;
     float z;
@@ -84,21 +94,26 @@ Vector3 operator*(Vector3 const& lhs, float scalar) {
     return {lhs.x * scalar, lhs.y * scalar, lhs.z * scalar};
 }
 
+// Returns the magnitude of a Vector3
 float magnitude(Vector3 v) {
     return std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 }
 
+// Returns a normalized Vector3
 Vector3 normalize(Vector3 v) { return v * (1.0f / magnitude(v)); }
 
+// Returns the cross product of two Vector3
 Vector3 cross(Vector3 const& lhs, Vector3 const& rhs) {
     return {lhs.y * rhs.z - lhs.z * rhs.y, lhs.z * rhs.x - lhs.x * rhs.z,
             lhs.x * rhs.y - lhs.y * rhs.x};
 }
 
+// Returns the dot product of two Vector3
 float dot(Vector3 const& lhs, Vector3 const& rhs) {
     return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z;
 }
 
+// Returns the angle between two Vector3
 float angle(Vector3 const& lhs, Vector3 const& rhs) {
     // The cosine of the angle between two vectors is equal to the dot product
     // of the vectors divided by the product of the magnitude of the vectors
@@ -112,35 +127,35 @@ float angle(Vector3 const& lhs, Vector3 const& rhs) {
     return static_cast<float>(std::acos(cos_a) * 180.0f / M_PI);
 }
 
+// A small RGB 256-bit color
 struct Color {
-    // A small RGB 256-bit color
     uint8_t r;
     uint8_t g;
     uint8_t b;
 };
 
+// A small RGBA 256-bit color
 struct ColorAlpha {
-    // A small RGBA 256-bit color
     uint8_t r;
     uint8_t g;
     uint8_t b;
     uint8_t a;
 
+    // Makes this color from a float
     void fromFloat(float f) {
-        // Makes this color from a float
         memcpy(this, &f, 4);
     }
 
+    // Returns this but as a float
     float toFloat() {
-        // Returns this but as a float
         float f = 0.0;
         memcpy(&f, this, 4);
         return f;
     }
 };
 
+// A small HSV 256-bit color
 struct ColorHSV {
-    // A small HSV 256-bit color
     uint8_t h;
     uint8_t s;
     uint8_t v;
@@ -148,11 +163,10 @@ struct ColorHSV {
 
 #pragma pack(push, 1) // Align to exact bytes
 
+// Header for all Bitmap image data, as well as default values and a QoL constructor
 // Source: https://solarianprogrammer.com/2018/11/19/cpp-reading-writing-bmp-images/
 // And: https://elcharolin.wordpress.com/2018/11/28/read-and-write-bmp-files-in-c-c/
-
 struct BMPHeader {
-    // Header for all Bitmap image data, as well as default values
     // Header
     uint16_t file_type{0x4D42}; // File type, always "BM"
     uint32_t file_size{0};      // Size of the file in total, in bytes
@@ -197,9 +211,9 @@ struct BMPHeader {
 
 ////////// FUNCTIONS //////////
 
+// Saves a double array of pixels as a bitmap image
+// Filepath should end in ".bmp", pixels should be rectangular, and origin_at_top_left toggles between the expected and bottom left (if false)
 void save_bmp(const std::string& filepath, const std::vector<std::vector<ColorAlpha>> pixels, bool origin_at_top_left = true) {
-    // Saves a double array of pixels as a bitmap image
-    // Filepath should end in ".bmp", pixels should be rectangular, and origin_at_top_left toggles between the expected and bottom left (if false)
     if (origin_at_top_left) {
         // Same as usual, just with a negative height the whole way through
         BMPHeader header(pixels.size(), -pixels[0].size());
@@ -225,13 +239,13 @@ void save_bmp(const std::string& filepath, const std::vector<std::vector<ColorAl
     }
 }
 
+// Makes and returns a blank (white) ColorAlpha array of the given dimensions
 std::vector<std::vector<ColorAlpha>> make_image_array(int width, int height) {
-    // Makes and returns a blank (white) ColorAlpha array of the given dimensions
     return std::vector<std::vector<ColorAlpha>>(width, std::vector<ColorAlpha>(height, {255, 255, 255, 255}));
 }
 
+// Loads all data within a file and returns as a C++ string
 std::string load_file(const std::string& filepath) {
-    // Loads all data within a file and returns as a C++ string
     std::ifstream f(filepath);
     if (f.good()) {
         std::string str;
@@ -248,9 +262,9 @@ std::string load_file(const std::string& filepath) {
     }
 }
 
+// Changes a normalized val in range [0.0, 1.0] into a 7-color heatmap color
+// Source: https://andrewnoske.com/wiki/Code_-_heatmaps_and_color_gradients
 Color heatmap(float val) {
-    // Changes a normalized val in range [0.0, 1.0] into a 7-color heatmap color
-    // Source: https://andrewnoske.com/wiki/Code_-_heatmaps_and_color_gradients
     Color colors[] = { {0,0,0}, {0,0,255}, {0,255,255}, {0,255,0}, {255,255,0}, {255,0,0}, {255,255,255} };
     int numColors = 7;
     int i1, i2; // Our final color will end between these two color indexes
@@ -277,24 +291,20 @@ Color heatmap(float val) {
     return retc;
 }
 
-inline Color random_color(const Color& c1, const Color& c2)
-{
-    // Returns a random color linearly interpolated between the two given colors
+// Returns a random color linearly interpolated between the two given colors
+inline Color random_color(const Color& c1, const Color& c2) {
     float t = (float)rand() / RAND_MAX; // Between 0-1
     return (Color){(uint8_t)(c1.r + (c2.r - c1.r) * t), (uint8_t)(c1.g + (c2.g - c1.g) * t), (uint8_t)(c1.b + (c2.b - c1.b) * t)}; // Compound literal
 }
 
-inline Color linear_color(float percent, const Color& c1, const Color& c2)
-{
-    // Returns the color percent of the way through the linear range between the colors. Percent in range [0.0, 1.0]
+// Returns the color percent of the way through the linear range between the colors. Percent in range [0.0, 1.0]
+inline Color linear_color(float percent, const Color& c1, const Color& c2) {
     return (Color){(uint8_t)(c1.r + (c2.r - c1.r) * percent), (uint8_t)(c1.g + (c2.g - c1.g) * percent), (uint8_t)(c1.b + (c2.b - c1.b) * percent)};
 }
 
+// Quickly (not accurately) converts an HSV color to a RGB color
 // RGB <-> HSV functions source: https://stackoverflow.com/questions/3018313/algorithm-to-convert-rgb-to-hsv-and-hsv-to-rgb-in-range-0-255-for-both
-// NOTE That these are not ultra-accurate, but they are fast
-Color hsv_to_rgb(ColorHSV hsv)
-{
-    // Quickly (not accurately) converts an HSV color to a RGB color
+Color hsv_to_rgb(ColorHSV hsv) {
     Color rgb;
     unsigned char region, remainder, p, q, t;
 
@@ -338,9 +348,9 @@ Color hsv_to_rgb(ColorHSV hsv)
     return rgb;
 }
 
-ColorHSV rgb_to_hsv(Color rgb)
-{
-    // Quickly (not accurately) converts an RGB color to a HSV color
+// Quickly (not accurately) converts an RGB color to a HSV color
+// RGB <-> HSV functions source: https://stackoverflow.com/questions/3018313/algorithm-to-convert-rgb-to-hsv-and-hsv-to-rgb-in-range-0-255-for-both
+ColorHSV rgb_to_hsv(Color rgb) {
     ColorHSV hsv;
     unsigned char rgbMin, rgbMax;
 
@@ -372,6 +382,7 @@ ColorHSV rgb_to_hsv(Color rgb)
     return hsv;
 }
 
+// Encodes a Base64 C++ string
 // Base64 functions source: https://stackoverflow.com/questions/180947/base64-decode-snippet-in-c
 static std::string base64_encode(const std::string &in) {
     std::string out;
@@ -390,6 +401,8 @@ static std::string base64_encode(const std::string &in) {
     return out;
 }
 
+// Decodes a Base64 C++ string
+// Base64 functions source: https://stackoverflow.com/questions/180947/base64-decode-snippet-in-c
 static std::string base64_decode(const std::string &in) {
     std::string out;
 
@@ -409,13 +422,13 @@ static std::string base64_decode(const std::string &in) {
     return out;
 }
 
+// Trims leading / trailing spaces (and only spaces)
 static std::string trim_spaces(const std::string& source) {
-    // Trims leading / trailing spaces (and only spaces)
     return source.substr(source.find_first_not_of(" "), source.find_last_not_of(" ") - source.find_first_not_of(" ") + 1);
 }
 
+// Returns the number at the given index of the source number (from right)
 int get_digit_at_index(int source, int index, int base = 10) {
-    // Returns the number at the given index of the source number (from right)
     int i = 0; // Iterable
     while (i < index)
     {
@@ -425,8 +438,8 @@ int get_digit_at_index(int source, int index, int base = 10) {
     return (source % base); // Gives back only the rightmost digit
 }
 
+// Returns the length of the given number, in base-base digits
 int get_number_length(int source, int base = 10) {
-    // Returns the length of the given number, in base-10 digits
     int digits = 0;
     while (source)
     {
@@ -436,11 +449,149 @@ int get_number_length(int source, int base = 10) {
     return digits;
 }
 
+// Collapses a 2D array index into a 1D array index in row-major order
+inline unsigned int collapse_index(unsigned int x, unsigned int y, unsigned int width) {
+    return y*width + x;
+}
+
+// Collapses a 3D array index into a 1D array index in row-major order
+inline unsigned int collapse_index(unsigned int x, unsigned int y, unsigned int z, unsigned int width, unsigned int height) {
+    return x*width*height + y*width + z;
+}
+
+// Saves a simple continuous structure to file
+// Template structure serialization source: https://snipplr.com/view/10148/c-structure-how-do-i-write-a-structure-to-a-file
+template<typename T>
+void write_pod(std::ofstream& out, T& t) {
+    out.write(reinterpret_cast<char*>(&t), sizeof(T));
+}
+
+// Reads a simple continuous structure to file
+// Template structure serialization source: https://snipplr.com/view/10148/c-structure-how-do-i-write-a-structure-to-a-file
+template<typename T>
+void read_pod(std::ifstream& in, T& t) {
+    in.read(reinterpret_cast<char*>(&t), sizeof(T));
+}
+
+// Writes an entire vector at once by prefixing it with the size of the vector in elements
+// Template structure serialization source: https://snipplr.com/view/10148/c-structure-how-do-i-write-a-structure-to-a-file
+template<typename T>
+void write_pod_vector(std::ofstream& out, std::vector<T>& vect) {
+    long size = vect.size();
+    write_pod<long>(out, size);
+    out.write(reinterpret_cast<char*>(vect.front()), size * sizeof(T));
+}
+
+// Reads an entire vector at once by prefixing it with the size of the vector in elements
+// Template structure serialization source: https://snipplr.com/view/10148/c-structure-how-do-i-write-a-structure-to-a-file
+template<typename T>
+void read_pod_vector(std::ifstream& in, std::vector<T>& vect) {
+    long size;
+    read_pod(in, size);
+    vect.resize(size);
+    in.read(reinterpret_cast<char*>(vect.front()), size * sizeof(T));
+}
+
+// Easing function defines for faster calculation
+// Basically this whole thing is from https://easings.net/
+#define C1_EASE 1.70158
+#define C2_EASE C1_EASE * 1.525
+#define C3_EASE C1_EASE + 1
+#define C4_EASE (2 * PI) / 3
+#define C5_EASE (2 * PI) / 4.5
+
+double easeLinear(double x) {return x;}
+double easeInQuad(double x) {return x * x;}
+double easeOutQuad(double x) {return 1.0 - (1.0 - x) * (1.0 - x);}
+double easeInOutQuad(double x) {return x < 0.5 ? 2.0 * x * x : 1 - pow(-2.0 * x + 2.0, 2.0) / 2.0;}
+double easeInCubic(double x) {return x * x * x;}
+double easeOutCubic(double x) {return 1.0 - pow(1.0 - x, 3.0);}
+double easeInOutCubic(double x) {return x < 0.5 ? 4.0 * x * x * x : 1.0 - pow(-2.0 * x + 2.0, 3.0) / 2.0;}
+double easeInQuart(double x) {return x * x * x * x;}
+double easeOutQuart(double x) {return 1.0 - pow(1.0 - x, 4.0);}
+double easeInOutQuart(double x) {return x < 0.5 ? 8.0 * x * x * x * x : 1.0 - pow(-2.0 * x + 2.0, 4.0) / 2.0;}
+double easeInQuint(double x) {return x * x * x * x * x;}
+double easeOutQuint(double x) {return 1.0 - pow(1.0 - x, 5.0);}
+double easeInOutQuint(double x) {return x < 0.5 ? 16.0 * x * x * x * x * x : 1.0 - pow(-2.0 * x + 2.0, 5.0) / 2.0;}
+double easeInSine(double x) {return 1.0 - cos((x * PI) / 2.0);}
+double easeOutSine(double x) {return sin((x * PI) / 2.0);}
+double easeInOutSine(double x) {return -(cos(PI * x) - 1.0) / 2.0;}
+double easeInExpo(double x) {return x == 0.0 ? 0.0 : pow(2.0, 10.0 * x - 10.0);}
+double easeOutExpo(double x) {return x == 1.0 ? 1.0 : 1.0 - pow(2.0, -10.0 * x);}
+double easeInOutExpo(double x) {
+    return x == 0.0
+        ? 0.0
+        : x == 1
+        ? 1.0
+        : x < 0.5
+        ? pow(2.0, 20.0 * x - 10.0) / 2.0
+        : (2.0 - pow(2.0, -20.0 * x + 10.0)) / 2.0;
+}
+double easeInCirc(double x) {return 1.0 - sqrt(1.0 - pow(x, 2.0));}
+double easeOutCirc(double x) {return sqrt(1.0 - pow(x - 1.0, 2.0));}
+double easeInOutCirc(double x) {
+    return x < 0.5
+        ? (1.0 - sqrt(1.0 - pow(2.0 * x, 2.0))) / 2.0
+        : (sqrt(1.0 - pow(-2.0 * x + 2.0, 2.0)) + 1.0) / 2.0;
+}
+double easeInBack(double x) {return C3_EASE * x * x * x - C1_EASE * x * x;}
+double easeOutBack(double x) {return 1.0 + C3_EASE * pow(x - 1.0, 3.0) + C1_EASE * pow(x - 1.0, 2.0);}
+double easeInOutBack(double x) {
+    return x < 0.5
+        ? (pow(2.0 * x, 2.0) * ((C2_EASE + 1.0) * 2.0 * x - C2_EASE)) / 2.0
+        : (pow(2.0 * x - 2.0, 2.0) * ((C2_EASE + 1.0) * (x * 2.0 - 2.0) + C2_EASE) + 2.0) / 2.0;
+}
+double easeInElastic(double x) {
+    return x == 0.0
+        ? 0.0
+        : x == 1.0
+        ? 1.0
+        : -pow(2.0, 10.0 * x - 10.0) * sin((x * 10.0 - 10.75) * C4_EASE);
+}
+double easeOutElastic(double x) {
+    return x == 0.0
+        ? 0.0
+        : x == 1.0
+        ? 1.0
+        : pow(2.0, -10.0 * x) * sin((x * 10.0 - 0.75) * C4_EASE) + 1.0;
+}
+double easeInOutElastic(double x) {
+    return x == 0.0
+        ? 0.0
+        : x == 1.0
+        ? 1.0
+        : x < 0.5
+        ? -(pow(2.0, 20.0 * x - 10.0) * sin((20.0 * x - 11.125) * C5_EASE)) / 2.0
+        : (pow(2.0, -20.0 * x + 10.0) * sin((20.0 * x - 11.125) * C5_EASE)) / 2.0 + 1.0;
+}
+double easeOutBounce(double x) {
+	const double n1 = 7.5625;
+	const double d1 = 2.75;
+
+	if (x < 1.0 / d1) {
+		return n1 * x * x;
+	} else if (x < 2.0 / d1) {
+		return n1 * (x -= 1.5 / d1) * x + 0.75;
+	} else if (x < 2.5 / d1) {
+		return n1 * (x -= 2.25 / d1) * x + 0.9375;
+	} else {
+		return n1 * (x -= 2.625 / d1) * x + 0.984375;
+	}
+}
+double easeInBounce(double x) {
+    return 1.0 - easeOutBounce(1.0 - x);
+}
+double easeInOutBounce(double x) {
+    return x < 0.5
+        ? (1.0 - easeOutBounce(1.0 - 2.0 * x)) / 2.0
+        : (1.0 + easeOutBounce(2.0 * x - 1.0)) / 2.0;
+}
+
 ////////// CLASSES //////////
 
+// A really, really fast boolean value generator with pretty random distribution
+// Usage: FastBoolGenerator fbg; bool random = fbg();
 class FastBoolGenerator {
-    // A really, really fast boolean value generator with pretty random distribution
-    // Usage: FastBoolGenerator fbg; bool random = fbg();
 public:
     FastBoolGenerator() { // Constructor
         std::random_device rd;     // Get a random seed from the OS entropy device, or whatever
@@ -465,6 +616,52 @@ private:
     uint64_t number = 0; // The number storing the bits
     uint8_t count = 64; // 0-63, determines if new random 64-bit number is needed
     uint64_t mask = 1; // Just the last bit
+};
+
+// A class for a double value that can be easily changed over time according to an easing function
+class Tween {
+public:
+    // Constructor
+    Tween(std::function<double(double)> easing_function = &easeLinear, double end_time = 1.0) {
+        function = easing_function;
+        value = 0.0;
+        time = end_time;
+        current_time = 0.0;
+    }
+    // Advance the time by the value
+    void advance(double delta_time) {
+        current_time += delta_time;
+        update();
+    }
+    // Sets the time to a given value
+    void set_time(double new_time) {
+        current_time = new_time;
+        update();
+    }
+    // Resets this value with new functions and a new start
+    void reset(std::function<double(double)> easing_function = &easeLinear, double end_time = 1.0) {
+        function = easing_function;
+        value = 0.0;
+        time = end_time;
+        current_time = 0.0;
+    }
+    operator double() const {return value;} // Built-in casting to double
+    double operator () () {return value;} // Getting value 
+private:
+    // Updates the value based on the now time
+    void update() {
+        if (current_time > time) {
+            value = 1.0;
+        } else if (current_time < 0.0) {
+            value = 0.0;
+        } else {
+            value = function(current_time / time);
+        }
+    }
+    double value = 0.0; // The current value of the output, will be mapped to mostly [0.0, 1.0]
+    double time = 1.0; // The value of time at which the animation will be complete
+    double current_time = 0.0; // The current value of the time
+    std::function<double(double)> function; // The easing function used
 };
 
 ////////// CLEANUP //////////
