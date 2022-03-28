@@ -9,7 +9,7 @@ Important Functionality:
 - Base-independent number digit indexing.
 - Multidimensional array index collapse helper functions.
 - General-purpose simple structure serial saving/loading, as well as native vector-of-things support.
-- Many, many easing functions, as well as a Tween helper class to make use of them easily.
+- Many, many easing functions, as well as a Tween helper class to make use of them as a near-native data structure.
 - Really, *really* fast random boolean generator.
 
 For more detail, as well as a current list of included structs, functions, and classes, see the comment at the top of `alexandria.h`.
