@@ -2,7 +2,7 @@
 A collection and standardization of utilities that I often re-implement.
 
 Important Functionality:
-- Vector3 implementation with operator addition, subtraction, and scalar multiplication, as well as magnitude(), normalize(), cross(), dot(), and angle() functions.
+- Vector3 implementation with operator addition, subtraction, and scalar multiplication, as well as magnitude(), normalize(), cross(), dot(), and angle() functions. additionally, some basic matrix integration through 2D float vectors.
 - Standardization of RGB Color, RGBA ColorAlpha, and HSV ColorHSV structures.
 - Color manipulation functionality, such as linear interpolation, fast RGB <-> HSV conversion, color-as-data native vector memory storage, and saving to ARGB bitmap.
 - Base64 encoding and decoding using native C++ strings.
