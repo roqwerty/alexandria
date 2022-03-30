@@ -16,6 +16,7 @@ Structs:
     Vector3: A basic 3D floating-point vector
         Supported operators: +, -, *
         Supported functions: magnitude(Vector3), normalize(Vector3), cross(Vector3, Vector3), dot(Vector3, Vector3), angle(Vector3, Vector3)
+        Supported matrix helpers: native * operator (mat*vec3), make_matrix_3x3(bool identity)
     Color: A small RGB 256-bit color
     ColorAlpha: A small RGBA 256-bit color
         Supported functions: ColorAlpha::fromFloat(float), ColorAlpha::toFloat()
@@ -23,7 +24,7 @@ Structs:
     BMPHeader: Header for all Bitmap image data, as well as default values, constructor provided
 
 Functions:
-        save_bmp(const std::string& filepath, const std::vector<std::vector<ColorAlpha>> pixels, bool origin_at_top_left = true): Saves a ColorAlpha vector as an image
+    save_bmp(const std::string& filepath, const std::vector<std::vector<ColorAlpha>> pixels, bool origin_at_top_left = true): Saves a ColorAlpha vector as an image
     std::vector<std::vector<ColorAlpha>> make_image_array(int width, int height): Makes and returns a blank (white) ColorAlpha array of the given dimensions
     std::string load_file(const std::string& filepath): Loads all data within a file and returns as a C++ string
     Color heatmap(float val): Changes a normalized val in range [0.0, 1.0] into a 7-color heatmap color
@@ -44,14 +45,14 @@ Functions:
 Classes:
     FastBoolGenerator: A really, really fast boolean value generator with pretty random distribution. Use () operator for use.
     Tween: A data structure to hold and use the above easing functions to have default behavior as a basic double in range [0.0, 1.0]
-        Has built-in double casting and time stretching, for ease of use
+        Has built-in double casting, time stretching, and scalar output multiplication, for ease of use
 
 --- Future Work ---
+Serialization and un-serialization of N-dimensional vectors of basic types
 N-dimensional index to 1-dimensional index collapse
 Reading from bitmap files, even if only ones written by this file
 General-purpose raycasting structure and library, implemented to be as fast as possible with trig lookup tables and the like
 BigInt, like https://stackoverflow.com/questions/4507121/c-big-integer
-Make Tween be able to scale output by a scalar value
 */
 
 ////////// SETUP //////////
@@ -66,6 +67,7 @@ Make Tween be able to scale output by a scalar value
 #include <iostream> // C++ stream input/output, used throughout
 #include <fstream> // C++ finestreaming, used for saving/loading functions
 #include <functional> // C++ functions-as-variables, used for some classes
+#include <stdexcept> // Clean and pretty exception throwing
 
 #ifdef USE_ALEXANDRIA_NAMESPACE
 namespace Alexandria {
@@ -80,6 +82,20 @@ struct Vector3 {
     float y;
     float z;
 };
+
+// Vector-matrix functions
+Vector3 operator*(std::vector<std::vector<float>> const& lhs, Vector3 const& rhs) {
+    // Throw an error if the vector is not the right size
+    if (lhs.size() != 3 || lhs[0].size() != 3) {
+        throw std::invalid_argument("Vector3 matrix multiplication only defined for 3x3 floating-point matrices.");
+    }
+
+    return (Vector3){
+        lhs[0][0]*rhs.x + lhs[1][0]*rhs.y + lhs[2][0]*rhs.z,
+        lhs[0][1]*rhs.x + lhs[1][1]*rhs.y + lhs[2][1]*rhs.z,
+        lhs[0][2]*rhs.x + lhs[1][2]*rhs.y + lhs[2][2]*rhs.z,
+    };
+}
 
 // Vector 3 math source: audeo C++ library
 Vector3 operator-(Vector3 const& lhs, Vector3 const& rhs) {
@@ -236,6 +252,16 @@ void save_bmp(const std::string& filepath, const std::vector<std::vector<ColorAl
             }
         }
         output.close();
+    }
+}
+
+// Makes and returns a 3x3 float vector, for use with Vector3 math.
+// If identity is set, it will be an identity matrix. Otherwise, it will be a zero matrix
+std::vector<std::vector<float>> make_matrix_3x3(bool identity = true) {
+    if (identity) {
+        return std::vector<std::vector<float>>{{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
+    } else {
+        return std::vector<std::vector<float>>{{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
     }
 }
 
@@ -622,11 +648,12 @@ private:
 class Tween {
 public:
     // Constructor
-    Tween(std::function<double(double)> easing_function = &easeLinear, double end_time = 1.0) {
+    Tween(std::function<double(double)> easing_function = &easeLinear, double end_time = 1.0, double scale = 1.0) {
         function = easing_function;
         value = 0.0;
         time = end_time;
         current_time = 0.0;
+        scalar = scale;
     }
     // Advance the time by the value
     void advance(double delta_time) {
@@ -639,14 +666,15 @@ public:
         update();
     }
     // Resets this value with new functions and a new start
-    void reset(std::function<double(double)> easing_function = &easeLinear, double end_time = 1.0) {
+    void reset(std::function<double(double)> easing_function = &easeLinear, double end_time = 1.0, double scale = 1.0) {
         function = easing_function;
         value = 0.0;
         time = end_time;
         current_time = 0.0;
+        scalar = scale;
     }
-    operator double() const {return value;} // Built-in casting to double
-    double operator () () {return value;} // Getting value 
+    operator double() const {return value * scalar;} // Built-in casting to double
+    double operator() () {return value * scalar;} // Getting value 
 private:
     // Updates the value based on the now time
     void update() {
@@ -661,6 +689,7 @@ private:
     double value = 0.0; // The current value of the output, will be mapped to mostly [0.0, 1.0]
     double time = 1.0; // The value of time at which the animation will be complete
     double current_time = 0.0; // The current value of the time
+    double scalar = 1.0; // How much to scale the output by
     std::function<double(double)> function; // The easing function used
 };
 
