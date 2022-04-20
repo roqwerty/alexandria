@@ -19,7 +19,7 @@ Structs:
         Supported matrix helpers: native * operator (mat*vec3), make_matrix_3x3(bool identity)
     Color: A small RGB 256-bit color
     ColorAlpha: A small RGBA 256-bit color
-        Supported functions: ColorAlpha::fromFloat(float), ColorAlpha::toFloat()
+        Supported functions: ColorAlpha::fromFloat(float), ColorAlpha::toFloat() -> casts to/from a floating point number for serial transportation
     ColorHSV: A small HSV 256-bit color
     BMPHeader: Header for all Bitmap image data, as well as default values, constructor provided
 
@@ -46,12 +46,18 @@ Classes:
     FastBoolGenerator: A really, really fast boolean value generator with pretty random distribution. Use () operator for use.
     Tween: A data structure to hold and use the above easing functions to have default behavior as a basic double in range [0.0, 1.0]
         Has built-in double casting, time stretching, and scalar output multiplication, for ease of use
+    Rect: A (x, y, w, h) structure built on and for Tweens
+        Built-in support for casting to SDL_Rect (also defines SDL_Rect struct if library is not included)
 
 --- Future Work ---
+Angle calculation between three points, with one as center. Multidimensional it.
+Ease-of-access functions for working with vectors with mutability similar to Python. Perhaps even a wrapper class
+Plotting functionality, even if basic. Save to BMP or image vector for users to display themselves.
 Serialization and un-serialization of N-dimensional vectors of basic types
 N-dimensional index to 1-dimensional index collapse
 Reading from bitmap files, even if only ones written by this file
-General-purpose raycasting structure and library, implemented to be as fast as possible with trig lookup tables and the like
+General-purpose raycasting structure and library, implemented to be as fast as possible
+    https://github.com/ssloy/tinyraycaster/wiki
 BigInt, like https://stackoverflow.com/questions/4507121/c-big-integer
 */
 
@@ -674,7 +680,7 @@ public:
         scalar = scale;
     }
     operator double() const {return value * scalar;} // Built-in casting to double
-    double operator() () {return value * scalar;} // Getting value 
+    const double operator() () {return value * scalar;} // Getting value 
 private:
     // Updates the value based on the now time
     void update() {
@@ -691,6 +697,59 @@ private:
     double current_time = 0.0; // The current value of the time
     double scalar = 1.0; // How much to scale the output by
     std::function<double(double)> function; // The easing function used
+};
+
+#ifndef SDL_h_ // Only set in SDL.h, so this only triggers if not already defined
+// Overload for an SDL_Rect
+struct SDL_Rect {
+    int x, y, w, h;
+};
+#endif
+
+class Rect {
+public:
+    // Basic Constructor
+    Rect(double x = 0.0, double y = 0.0, double w = 0.0, double h = 0.0) {
+        scale_x = x;
+        scale_y = y;
+        scale_w = w;
+        scale_h = h;
+        x = Tween(&easeLinear, 1.0, scale_x);
+        y = Tween(&easeLinear, 1.0, scale_y);
+        w = Tween(&easeLinear, 1.0, scale_w);
+        h = Tween(&easeLinear, 1.0, scale_h);
+    }
+
+    // Advanced constructor
+    Rect(const Tween& tx, const Tween& ty, const Tween& tw, const Tween& th) {
+        x = tx;
+        y = ty;
+        w = tw;
+        h = th;
+    }
+
+    // Update function, advances the time by the given time for all elements
+    void advance(double delta_time) {
+        x.advance(delta_time);
+        y.advance(delta_time);
+        w.advance(delta_time);
+        h.advance(delta_time);
+    }
+
+    // Sets the time for all contained Tweens
+    void set_time(double new_time) {
+        x.set_time(new_time);
+        y.set_time(new_time);
+        w.set_time(new_time);
+        h.set_time(new_time);
+    }
+
+    // Casting to SDL_Rect
+    operator SDL_Rect() const {return SDL_Rect{(int)(double)x, (int)(double)y, (int)(double)w, (int)(double)h};}
+
+    Tween x, y, w, h; // Tween variables, can be edited independently
+    double scale_x, scale_y, scale_w, scale_h; // Default scale of all the values
+private:
 };
 
 ////////// CLEANUP //////////
