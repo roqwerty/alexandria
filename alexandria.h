@@ -41,6 +41,7 @@ Functions:
         also available as collapse_index(x, y, z, width, height) for 3D -> 1D conversion
     write_pod(), read_pod(), write_pod_vector(), and read_pod_vector() for templated general-purpose simple structure serialization
     easeIn/Out double functions for every easing function found at https://easings.net/
+    void stream_loading_bar(std::ostream& out, float percent, const std::string& title = "", int bar_width = 0, int count_finished = -1, int count_total = -1): Sends a loading bar to stream (no terminating newline), slow at the moment
 
 Classes:
     FastBoolGenerator: A really, really fast boolean value generator with pretty random distribution. Use () operator for use.
@@ -50,6 +51,10 @@ Classes:
         Built-in support for casting to SDL_Rect (also defines SDL_Rect struct if library is not included)
 
 --- Future Work ---
+An extract() function that turns values in a small subset of string data formats (JSON, .ini, csv, etc.) into a simple vector/map of values
+    Perhaps even make it templated like the string format function
+Basic unit testing macro expansion thing, for a series of tests already defined in a main() function
+Fast calculation and return of a set of points in a circle around another point (from SDL_wrapper)
 Angle calculation between three points, with one as center. Multidimensional it.
 Ease-of-access functions for working with vectors with mutability similar to Python. Perhaps even a wrapper class
 Plotting functionality, even if basic. Save to BMP or image vector for users to display themselves.
@@ -74,6 +79,7 @@ BigInt, like https://stackoverflow.com/questions/4507121/c-big-integer
 #include <fstream> // C++ finestreaming, used for saving/loading functions
 #include <functional> // C++ functions-as-variables, used for some classes
 #include <stdexcept> // Clean and pretty exception throwing
+#include <iomanip> // std::setprecision
 
 #ifdef USE_ALEXANDRIA_NAMESPACE
 namespace Alexandria {
@@ -332,6 +338,17 @@ inline Color random_color(const Color& c1, const Color& c2) {
 // Returns the color percent of the way through the linear range between the colors. Percent in range [0.0, 1.0]
 inline Color linear_color(float percent, const Color& c1, const Color& c2) {
     return (Color){(uint8_t)(c1.r + (c2.r - c1.r) * percent), (uint8_t)(c1.g + (c2.g - c1.g) * percent), (uint8_t)(c1.b + (c2.b - c1.b) * percent)};
+}
+
+// Returns a random color linearly interpolated between the two given colors
+inline ColorAlpha random_color(const ColorAlpha& c1, const ColorAlpha& c2) {
+    float t = (float)rand() / RAND_MAX; // Between 0-1
+    return (ColorAlpha){(uint8_t)(c1.r + (c2.r - c1.r) * t), (uint8_t)(c1.g + (c2.g - c1.g) * t), (uint8_t)(c1.b + (c2.b - c1.b) * t), (uint8_t)(c1.a + (c2.a - c1.a) * t)};
+}
+
+// Returns the color percent of the way through the linear range between the colors. Percent in range [0.0, 1.0]
+inline ColorAlpha linear_color(float percent, const ColorAlpha& c1, const ColorAlpha& c2) {
+    return (ColorAlpha){(uint8_t)(c1.r + (c2.r - c1.r) * percent), (uint8_t)(c1.g + (c2.g - c1.g) * percent), (uint8_t)(c1.b + (c2.b - c1.b) * percent), (uint8_t)(c1.a + (c2.a - c1.a) * percent)};
 }
 
 // Quickly (not accurately) converts an HSV color to a RGB color
@@ -617,6 +634,47 @@ double easeInOutBounce(double x) {
     return x < 0.5
         ? (1.0 - easeOutBounce(1.0 - 2.0 * x)) / 2.0
         : (1.0 + easeOutBounce(2.0 * x - 1.0)) / 2.0;
+}
+
+// Prints a loading bar based on given inputs:
+//  out: output stream
+//  percent: percent complete in range [0.0, 1.0]
+//  title: Prints a title to the loading bar
+//  bar_width: The total length (in characters) of a [===>  ]-style bar, if any (2 + number of = signs)
+//  count_finished: The number of finished tasks
+//  count_total: The number of total tasks
+// NOTE: This is really kinda slow at the moment, but it DOES work. Don't use per-operation, use per-chunk
+void stream_loading_bar(std::ostream& out, float percent, const std::string& title = "", int bar_width = 0, int count_finished = -1, int count_total = -1) {
+    out << "\r"; // Return to beginning of line
+
+    // Title
+    if (title != "") {
+        out << title << ": ";
+    }
+
+    // Loading bar
+    if (bar_width > 2) {
+        out << "[";
+        int cutoff = (bar_width-2)*percent;
+        for (int i = 0; i < bar_width-2; i++) {
+            if (i < cutoff) {
+                out << "=";
+            } else if (i == cutoff) {
+                out << ">";
+            } else {
+                out << " ";
+            }
+        }
+        out << "] ";
+    }
+
+    // Percent number
+    out << std::setprecision(4) << std::setw(5) << percent*100.0 << "%";
+
+    // Finished counts
+    if (count_finished != -1 && count_total != -1) {
+        out << " (" << count_finished << "/" << count_total << ")";
+    }
 }
 
 ////////// CLASSES //////////
