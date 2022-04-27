@@ -42,6 +42,9 @@ Functions:
     write_pod(), read_pod(), write_pod_vector(), and read_pod_vector() for templated general-purpose simple structure serialization
     easeIn/Out double functions for every easing function found at https://easings.net/
     void stream_loading_bar(std::ostream& out, float percent, const std::string& title = "", int bar_width = 0, int count_finished = -1, int count_total = -1): Sends a loading bar to stream (no terminating newline), slow at the moment
+    std::vector<std::string> extract_vector(const std::string& input, char delimiter = ',', const std::string& ignored_characters = " \n\t[](){}"): Turns an input std::string into a vector of extracted value strings, including an intelligent delimiter and a section of ignored characters
+    std::map<std::string, std::string> extract_map(const std::string& input, char keyval_delimiter = '=', char entry_delimiter = '\n', const std::string& ignored_characters = " \t[](){}"): Splits an input std::string into a map of key/value pairs based on input delimiters and ignored characters
+
 
 Classes:
     FastBoolGenerator: A really, really fast boolean value generator with pretty random distribution. Use () operator for use.
@@ -51,12 +54,13 @@ Classes:
         Built-in support for casting to SDL_Rect (also defines SDL_Rect struct if library is not included)
 
 --- Future Work ---
-An extract() function that turns values in a small subset of string data formats (JSON, .ini, csv, etc.) into a simple vector/map of values
-    Perhaps even make it templated like the string format function
+Make the extract functions templated like the string format function
 Basic unit testing macro expansion thing, for a series of tests already defined in a main() function
+    This, at the very least, will require an ASSERT_EQ with optional epsilon for error
+Regular expression expansion / mapping with returned variable environment map
 Fast calculation and return of a set of points in a circle around another point (from SDL_wrapper)
 Angle calculation between three points, with one as center. Multidimensional it.
-Ease-of-access functions for working with vectors with mutability similar to Python. Perhaps even a wrapper class
+Ease-of-access functions for working with std::vectors with mutability similar to Python. Perhaps even a wrapper class
 Plotting functionality, even if basic. Save to BMP or image vector for users to display themselves.
 Serialization and un-serialization of N-dimensional vectors of basic types
 N-dimensional index to 1-dimensional index collapse
@@ -74,6 +78,7 @@ BigInt, like https://stackoverflow.com/questions/4507121/c-big-integer
 #include <cmath> // Math functions, used throughout
 #include <string> // C++ string library, used throughout
 #include <vector> // C++ vector library, used throughout
+#include <map> // C++ map library, used throughout
 #include <random> // Random number generation, used only for "random" functions
 #include <iostream> // C++ stream input/output, used throughout
 #include <fstream> // C++ finestreaming, used for saving/loading functions
@@ -675,6 +680,58 @@ void stream_loading_bar(std::ostream& out, float percent, const std::string& tit
     if (count_finished != -1 && count_total != -1) {
         out << " (" << count_finished << "/" << count_total << ")";
     }
+}
+
+// Turns an input std::string into a vector of extracted value strings, including an intelligent delimiter and a section of ignored characters
+std::vector<std::string> extract_vector(const std::string& input, char delimiter = ',', const std::string& ignored_characters = " \n\t[](){}") {
+    std::string current = ""; // The current string selection
+    std::vector<std::string> values; // The return values
+    for (char c : input) {
+        if (ignored_characters.find(c) == std::string::npos) {
+            // Is a valid value or delim character
+            if (c == delimiter) {
+                // Split value
+                values.push_back(current);
+                current = "";
+            } else {
+                current += c;
+            }
+        }
+    }
+    if (current != "") {
+        values.push_back(current);
+    }
+    return values;
+}
+
+// Splits an input std::string into a map of key/value pairs based on input delimiters and ignored characters
+std::map<std::string, std::string> extract_map(const std::string& input, char keyval_delimiter = '=', char entry_delimiter = '\n', const std::string& ignored_characters = " \t[](){}") {
+    // Get entry lines
+    std::string current = ""; // The current string selection
+    std::vector<std::string> entries; // The entry pairs
+    for (char c : input) {
+        if (ignored_characters.find(c) == std::string::npos) {
+            // Is a valid value or delim character
+            if (c == entry_delimiter) {
+                // Split value
+                entries.push_back(current);
+                current = "";
+            } else {
+                current += c;
+            }
+        }
+    }
+    if (current != "") {
+        entries.push_back(current);
+    }
+
+    // Add entries into a map
+    std::map<std::string, std::string> keyvals; // The return map
+    for (const std::string& e : entries) {
+        size_t index = e.find(keyval_delimiter);
+        keyvals[e.substr(0, index)] = e.substr(index+1);
+    }
+    return keyvals;
 }
 
 ////////// CLASSES //////////
