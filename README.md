@@ -11,6 +11,7 @@ Important Functionality:
 - General-purpose simple structure serial saving/loading, as well as native vector-of-things support.
 - Many, many easing functions, as well as a Tween helper class to make use of them as a near-native data structure.
 - Simple loading bar streaming function with modular support for titles, progress bars, and (completed/total) counts.
+- Generalized extraction of value vectors and maps from C++ strings (with support for JSON lists and maps, CSV/TSV files, and .ini files, as well as many others through use of custom delimiters and ignored characters)
 - Really, *really* fast random boolean generator.
 
 For more detail, as well as a current list of included structs, functions, and classes, see the comment at the top of `alexandria.h`.
