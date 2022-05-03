@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
     // Compares two values within an error margin
     TEST_EPSILON_EQ(fx, fy, 0.00001);
 
-    // Any tests performed when this is false won't print any output, but WILL still
+    // Any tests performed when this is true won't print any output, but WILL still
     //  be outlined by the summary macro below
     TESTS_SILENT = true;
 
