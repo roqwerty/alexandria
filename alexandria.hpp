@@ -26,7 +26,6 @@ Released freely under the Unlicense, except where sources are cited.
 #        |  |            | |         |//                     \\|         | |            |  |        #
 #---------------------------------------------------------------------------------------------------#
 
-
 */
 
 // Compilation Settings
