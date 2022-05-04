@@ -1,6 +1,34 @@
 #ifndef ALEXANDRIA_LIBRARY_INCLUDED
 #define ALEXANDRIA_LIBRARY_INCLUDED
 
+/*
+
+The Alexandria Library
+Built by Ethan Brucker
+Latest:
+    https://github.com/roqwerty/alexandria
+
+Released freely under the Unlicense, except where sources are cited.
+
+#---------------------------------------------------------------------------------------------------#
+#""--..__|  |            | |         ||     _.---------._     ||         | |            |  |__..--""#
+#        ""--..__        | |         ||   .'             '.   ||         | |        __..--""        #
+#                ""--..__| |         ||  /                 \  ||         | |__..--""                #
+#                        ""--..__    || |    -""-. .-""-    | ||    __..--""                        #
+#....____                        ""--||_|   | "" .|   "-|   |_||--''                        ____....#
+#        ;"";----....____               "|  |-  - |.-  -|  |"               ____....----;"";        # 
+#        |  |            ;";"----....____|  |-"  .|  ""-|  |____....----";";            |  |        # 
+#        |  |            | |         || |   |-""-.|.-""-|   | ||         | |            |  |        #
+#        |  |            |_|         [] |        \V/        | []         |_|            |  |        #
+#        |__|            |_|         || |  ___:__|||__:___  | ||         |_|            |__|        #
+#        |  |            | |         || |_|______.^.______|_| ||         | |            |  |        #
+#        |__|            | |         ||//                   \\||         | |            |__|        #
+#        |  |            | |         |//                     \\|         | |            |  |        #
+#---------------------------------------------------------------------------------------------------#
+
+
+*/
+
 // Compilation Settings
 //#define USE_ALEXANDRIA_NAMESPACE // If uncommented or otherwise defined, will make ALL of the following (except macros and defines) part of the Alexandria:: namespace
 //#define USE_ALEXANDRIA_COLORLESS // Use colorless testing and output for other functions, useful for OSs like Windows that just don't play nice with color :<
@@ -78,10 +106,9 @@ Classes:
         Built-in support for casting to SDL_Rect (also defines SDL_Rect struct if library is not included)
 
 --- Future Work ---
-pull README for easier editing offline (ACTUALLY) just clone the repo and add a .gitignore for a few things, including itself
-Add a github link to the top of this file for updates
+add a debug macro that just returns that string instead of printing it
 Add NEQ tests for not equals but with the same level of verbose detail that _EQ grants
-a define-based system that can remove large sections of code for different debug/release compilations, such as unit tests, print statements, and antyhing else
+a define-based system that can remove large sections of code for different debug/release compilations, such as unit tests, print statements, and anything else
 basic defines for Color structs for the 8 terminal colors
 matrix3 * matrix3 function
 to-stream functions for all classes
