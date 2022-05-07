@@ -56,6 +56,9 @@ Testing Macros and Values:
         TEST_EQ(x, y): Tests if (x == y), basic unit test. Stores and prints the values of x and y and test output in color according to pass/fail along with file and line location
         TEST_NAMED_EQ(n, x, y): See above, but also stores the name string n to the test for future reference alongside file and line numbers
         TEST_EPSILON_EQ(x, y, e): Tests whether two values are within epsilon of each other-s values (abs(x - y) <= e)
+        TEST_NEQ(x, y): Same as TEST_EQ for inequality
+        TEST_NAMED_NEQ(n, x, y): Same as TEST_NAMED_EQ for inequality
+        TEST_EPSILON_NEQ(x, y, e): Same as TEST_EPSILON_EQ for inequality
     Meta-test variables and macros:
         TESTS_SILENT: A boolean variable, default false. If set to true, tests will be silent other than TEST_SUMMARY() below
             Note that this can be toggled true/false multiple times within the code base, allowing verbose explanation and printing of a select subset of tests
@@ -63,7 +66,7 @@ Testing Macros and Values:
 
 Structs:
     Vector3: A basic 3D floating-point vector
-        Supported operators: +, -, *, <<
+        Supported operators: +, -, *, /, <<
         Supported functions: magnitude(Vector3), normalize(Vector3), cross(Vector3, Vector3), dot(Vector3, Vector3), angle(Vector3, Vector3)
         Supported matrix helpers: native * operator (mat*vec3), make_matrix_3x3(bool identity)
     Color: A small RGB 256-bit color
@@ -103,15 +106,20 @@ Classes:
         Has built-in double casting, time stretching, and scalar output multiplication, for ease of use
     Rect: A (x, y, w, h) structure built on and for Tweens
         Built-in support for casting to SDL_Rect (also defines SDL_Rect struct if library is not included)
+    Circle<type>: A wrapper for std::vector that behaves as a circular buffer with a changeable zero index (moves iterator, NOT whole contents of buffer)
+        Supported operations:
+            clear, insert(element), remove: Change the contents of the buffer (at current zero index)
+            +=, -=, ++circle, circle++, --circle, circle--: Alter the position of the zero index safely, with looping. O(1)
+            []: Access the element at offset within the buffer, safely, with looping. Supports negative indexes.
 
 --- Future Work ---
-add a debug macro that just returns that string instead of printing it
-Add NEQ tests for not equals but with the same level of verbose detail that _EQ grants
+A point struct and a system to iterate over certain coordinates, such as all in a circle or within a letter or the like
 a define-based system that can remove large sections of code for different debug/release compilations, such as unit tests, print statements, and anything else
 basic defines for Color structs for the 8 terminal colors
 matrix3 * matrix3 function
 to-stream functions for all classes
-a wrapper for a std::vector that makes it behave like a circular buffer
+ultra-basic 2D/3D physics engine wrapper using Verlet Integration: https://www.youtube.com/watch?v=lS_qeBy3aQI
+    and friction: https://stackoverflow.com/questions/10270875/verlet-integrator-friction
 This color lookup map function: https://www.youtube.com/watch?v=HsOKwUwL1bE
 SDICL support and fast kernel interfacing
 Add a doppler heatmap-like function that maps "going-away" and "going-toward" black-blue-red-white colors to values in range [-1.0, 1.0]
@@ -127,6 +135,8 @@ Reading from bitmap files, even if only ones written by this file
 General-purpose raycasting structure and library, implemented to be as fast as possible
     https://github.com/ssloy/tinyraycaster/wiki
 BigInt, like https://stackoverflow.com/questions/4507121/c-big-integer
+---
+Add a debug macro that just returns that string instead of printing it (requires different overloads, so tabled for now)
 */
 
 ////////// SETUP //////////
@@ -203,9 +213,12 @@ bool TESTS_SILENT = false; // If set true, tests other than summary will have no
 std::vector<std::string> TESTS_FAILURES;
 #define TEST(x) TESTS_TOTAL++; if (x) {TESTS_SUCCESSFUL++; if (!TESTS_SILENT) {std::cout << T_GREEN << "test passed @ " << LOCATION << T_RESET << std::endl;}} else {TESTS_FAILURES.push_back(LOCATION); if (!TESTS_SILENT) {std::cout << T_RED << "TEST FAILED @ " << LOCATION << T_RESET << std::endl << "\twhere " << #x << " (" << (x) << ") was FALSE" << std::endl;}}
 #define TEST_NAMED(n, x) TESTS_TOTAL++; if (x) {TESTS_SUCCESSFUL++; if (!TESTS_SILENT) {std::cout << T_GREEN << "test \"" << n << "\" passed @ " << LOCATION << T_RESET << std::endl;}} else {TESTS_FAILURES.push_back(LOCATION + " (" + n + ")"); if (!TESTS_SILENT) {std::cout << T_RED << "TEST \"" << n << "\" FAILED @ " << LOCATION << T_RESET << std::endl << "\twhere " << #x << " (" << (x) << ") was FALSE" << std::endl;}}
-#define TEST_EQ(x, y) TESTS_TOTAL++; if (x == y) {TESTS_SUCCESSFUL++; if (!TESTS_SILENT) {std::cout << T_GREEN << "test passed @ " << LOCATION << T_RESET << std::endl;}} else {TESTS_FAILURES.push_back(LOCATION); if (!TESTS_SILENT) {std::cout << T_RED << "TEST FAILED @ " << LOCATION << T_RESET << std::endl << "\tcomparing " << #x << " (" << x << ") to " << #y << " (" << y << ")" << std::endl;}}
-#define TEST_NAMED_EQ(n, x, y) TESTS_TOTAL++; if (x == y) {TESTS_SUCCESSFUL++; if (!TESTS_SILENT) {std::cout << T_GREEN << "test \"" << n << "\" passed @ " << LOCATION << T_RESET << std::endl;}} else {TESTS_FAILURES.push_back(LOCATION + " (" + n + ")"); if (!TESTS_SILENT) {std::cout << T_RED << "TEST \"" << n << "\" FAILED @ " << LOCATION << T_RESET << std::endl << "\tcomparing " << #x << " (" << x << ") to " << #y << " (" << y << ")" << std::endl;}}
-#define TEST_EPSILON_EQ(x, y, e) TESTS_TOTAL++; if (abs(x - y) <= e) {TESTS_SUCCESSFUL++; if (!TESTS_SILENT) {std::cout << T_GREEN << "test passed @ " << LOCATION << T_RESET << std::endl;}} else {TESTS_FAILURES.push_back(LOCATION); if (!TESTS_SILENT) {std::cout << T_RED << "TEST FAILED @ " << LOCATION << T_RESET << std::endl << "\tcomparing " << #x << " (" << x << ") to " << #y << " (" << y << ")" << " with epsilon " << e << std::endl;}}
+#define TEST_EQ(x, y) TESTS_TOTAL++; if (x == y) {TESTS_SUCCESSFUL++; if (!TESTS_SILENT) {std::cout << T_GREEN << "test passed @ " << LOCATION << T_RESET << std::endl;}} else {TESTS_FAILURES.push_back(LOCATION); if (!TESTS_SILENT) {std::cout << T_RED << "TEST FAILED @ " << LOCATION << T_RESET << std::endl << "\tequating " << #x << " (" << x << ") to " << #y << " (" << y << ")" << std::endl;}}
+#define TEST_NAMED_EQ(n, x, y) TESTS_TOTAL++; if (x == y) {TESTS_SUCCESSFUL++; if (!TESTS_SILENT) {std::cout << T_GREEN << "test \"" << n << "\" passed @ " << LOCATION << T_RESET << std::endl;}} else {TESTS_FAILURES.push_back(LOCATION + " (" + n + ")"); if (!TESTS_SILENT) {std::cout << T_RED << "TEST \"" << n << "\" FAILED @ " << LOCATION << T_RESET << std::endl << "\tequating " << #x << " (" << x << ") to " << #y << " (" << y << ")" << std::endl;}}
+#define TEST_EPSILON_EQ(x, y, e) TESTS_TOTAL++; if (abs(x - y) <= e) {TESTS_SUCCESSFUL++; if (!TESTS_SILENT) {std::cout << T_GREEN << "test passed @ " << LOCATION << T_RESET << std::endl;}} else {TESTS_FAILURES.push_back(LOCATION); if (!TESTS_SILENT) {std::cout << T_RED << "TEST FAILED @ " << LOCATION << T_RESET << std::endl << "\tequating " << #x << " (" << x << ") to " << #y << " (" << y << ")" << " with epsilon " << e << std::endl;}}
+#define TEST_NEQ(x, y) TESTS_TOTAL++; if (x != y) {TESTS_SUCCESSFUL++; if (!TESTS_SILENT) {std::cout << T_GREEN << "test passed @ " << LOCATION << T_RESET << std::endl;}} else {TESTS_FAILURES.push_back(LOCATION); if (!TESTS_SILENT) {std::cout << T_RED << "TEST FAILED @ " << LOCATION << T_RESET << std::endl << "\tinequating " << #x << " (" << x << ") to " << #y << " (" << y << ")" << std::endl;}}
+#define TEST_NAMED_NEQ(n, x, y) TESTS_TOTAL++; if (x != y) {TESTS_SUCCESSFUL++; if (!TESTS_SILENT) {std::cout << T_GREEN << "test \"" << n << "\" passed @ " << LOCATION << T_RESET << std::endl;}} else {TESTS_FAILURES.push_back(LOCATION + " (" + n + ")"); if (!TESTS_SILENT) {std::cout << T_RED << "TEST \"" << n << "\" FAILED @ " << LOCATION << T_RESET << std::endl << "\tinequating " << #x << " (" << x << ") to " << #y << " (" << y << ")" << std::endl;}}
+#define TEST_EPSILON_NEQ(x, y, e) TESTS_TOTAL++; if (abs(x - y) > e) {TESTS_SUCCESSFUL++; if (!TESTS_SILENT) {std::cout << T_GREEN << "test passed @ " << LOCATION << T_RESET << std::endl;}} else {TESTS_FAILURES.push_back(LOCATION); if (!TESTS_SILENT) {std::cout << T_RED << "TEST FAILED @ " << LOCATION << T_RESET << std::endl << "\tinequating " << #x << " (" << x << ") to " << #y << " (" << y << ")" << " with epsilon " << e << std::endl;}}
 #define TEST_SUMMARY() std::cout << T_CYAN << "+--------------+\n| TEST SUMMARY |\n+--------------+\n" << T_GREEN << "Passed " << TESTS_SUCCESSFUL << "/" << TESTS_TOTAL << " tests (" << (TESTS_SUCCESSFUL/(float)TESTS_TOTAL)*100.0 << "%)" << T_RESET << std::endl; if (TESTS_FAILURES.size() > 0) {std::cout << T_RED << "Failed tests:" << T_RESET << std::endl; for (const std::string& s : TESTS_FAILURES) {std::cout << "    " << s << std::endl;}}
 
 // Begin Alexandria namespace
@@ -253,6 +266,10 @@ Vector3 operator+(Vector3 const& lhs, Vector3 const& rhs) {
 
 Vector3 operator*(Vector3 const& lhs, float scalar) {
     return {lhs.x * scalar, lhs.y * scalar, lhs.z * scalar};
+}
+
+Vector3 operator/(Vector3 const& lhs, float scalar) {
+    return {lhs.x / scalar, lhs.y / scalar, lhs.z / scalar};
 }
 
 // Returns the magnitude of a Vector3
@@ -1011,6 +1028,115 @@ public:
     Tween x, y, w, h; // Tween variables, can be edited independently
     double scale_x, scale_y, scale_w, scale_h; // Default scale of all the values
 private:
+};
+
+// A wrapper for an std::vector that makes it behave like a circular buffer
+template <typename T>
+class Circle {
+public:
+    // Functions
+
+    // Clears the entire structure
+    void clear() {
+        contents.clear();
+        index = 0;
+    }
+
+    // Add a new element at the current buffer position, moving current element forwards (new element inserted before)
+    void insert(T element) {
+        auto it = contents.begin();
+        contents.insert(it+index, element);
+    }
+
+    // Removes the element at the current position
+    void remove() {
+        auto it = contents.begin();
+        contents.erase(it+index);
+    }
+
+    // Advance the zero position
+    Circle& operator+=(int delta) {
+        if (contents.size() == 0) {throw std::out_of_range("Attempted to advance index of buffer of size 0");} // No data
+        index += delta;
+        while (index >= contents.size()) {
+            index -= contents.size();
+        }
+        while (index < 0) {
+            index += contents.size();
+        }
+        return (*this);
+    }
+
+    // Retreat the zero posiiton
+    Circle& operator-=(int delta) {
+        if (contents.size() == 0) {throw std::out_of_range("Attempted to retreat index of buffer of size 0");} // No data
+        index -= delta;
+        while (index >= contents.size()) {
+            index -= contents.size();
+        }
+        while (index < 0) {
+            index += contents.size();
+        }
+        return (*this);
+    }
+
+    // Prefix increment position
+    Circle& operator++() {
+        index++;
+        if (index == contents.size()) {
+            index = 0;
+        }
+        return *this;
+    }
+
+    // Postfix increment position
+    T operator++(int) {
+        T og = (*this)[0];
+        ++(*this);
+        return og;
+    }
+
+    // Prefix decrement position
+    Circle& operator--() {
+        index--;
+        if (index == -1) {
+            index = contents.size() - 1;
+        }
+        return *this;
+    }
+
+    // Postfix decrement position
+    T operator--(int) {
+        T og = (*this)[0];
+        --(*this);
+        return og;
+    }
+
+    // Returns the element at the given offset from the current pointer
+    T& operator[](int offset) {
+        if (contents.size() == 0) {throw std::out_of_range("Attempted to access element of buffer of size 0");} // No data
+        int target = index + offset;
+        while (target >= contents.size()) {
+            target -= contents.size();
+        }
+        while (target < 0) {
+            target += contents.size();
+        }
+        return contents[target];
+    }
+
+    // Size function, use this for looping
+    int size() {
+        return contents.size();
+    }
+
+    // Variables
+private:
+    // Variables
+    std::vector<T> contents; // The underlying data
+    int index = 0; // The index of the current data element as the "beginning" of the buffer
+    //typename std::vector<T>::iterator it = contents.begin(); // The current position of the "beginning" of the buffer
+    // Functions
 };
 
 ////////// CLEANUP //////////

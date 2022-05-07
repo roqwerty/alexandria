@@ -170,5 +170,19 @@ for (auto kv : extract_map(ini_input)) {
 }
 ```
 
+### Circular Buffers
+```c++
+Circle<std::string> cs;
+cs.insert("One"); // Buffer from zero: ["One"]
+cs.insert("Two"); // Buffer from zero: ["Two", "One"]
+cs.insert("Three");  // Buffer from zero: ["Three", "Two", "One"]
+cs++; // Buffer from zero: ["Two", "One", "Three"]
+
+// This will print all elements of the buffer, in order, twice.
+for (int i = 0; i < cs.size() * 2; i++) {
+    std::cout << cs[i] << std::endl;
+}
+```
+
 ## Licensing
 Code in this file was acquired from a wide variety of sources in addition to being hand-made myself. If I added a section from somwhere, the source is mentioned in a comment above their section. If there is no explicit source, assume that I wrote it and released it freely under the [unlicense](https://unlicense.org/).
