@@ -5,8 +5,10 @@ A collection and standardization of utilities that I often re-implement.
 - Embeddable and flexible unit testing framework with native support for verbosity (including automatic file:line position) and program-wide summary
 - Defines for colored terminal output in bash-based terminals and streams.
 - Debug macros, such as printing variable data (code name, memory address, type, and value), in-code location (file:line), and compile time as native C++ data structures.
+- Point2 and Point3 structures for coordinates
+- Ability to iterate over points within predefined lists, such as the points of characters in the Monogram font
 - Optional `Alexandria::` namespace encapsulation.
-- Vector3 implementation with operator addition, subtraction, and scalar multiplication, as well as magnitude(), normalize(), cross(), dot(), and angle() functions. additionally, some basic matrix integration through 2D float vectors.
+- Vector3 implementation with operator addition, subtraction, and scalar multiplication/division, as well as magnitude(), normalize(), cross(), dot(), and angle() functions. additionally, some basic matrix integration through 2D float vectors.
 - Standardization of RGB Color, RGBA ColorAlpha, and HSV ColorHSV structures.
 - Color manipulation functionality, such as linear interpolation, fast RGB <-> HSV conversion, color-as-data native vector memory storage, and saving to ARGB bitmap.
 - Base64 encoding and decoding using native C++ strings.
@@ -16,6 +18,7 @@ A collection and standardization of utilities that I often re-implement.
 - Many, many easing functions, as well as a Tween helper class to make use of them as a near-native data structure.
 - Simple loading bar streaming function with modular support for titles, progress bars, and (completed/total) counts.
 - Generalized extraction of value vectors and maps from C++ strings (with support for JSON lists and maps, CSV/TSV files, and .ini files, as well as many others through use of custom delimiters and ignored characters)
+- A wrapper for `std::vector` that makes it behave as a circular buffer data structure.
 - Really, *really* fast random boolean generator.
 
 For more detail, as well as a current list of included structs, functions, and classes, see the comment at the top of `alexandria.h`.
@@ -140,6 +143,36 @@ pixels[0][height-1] = {0, 0, 255, 255}; // Max in y is blue
 
 // Save with origin at bottom left (last val = false, else top right)
 save_bmp("example.bmp", pixels, false);
+```
+
+### Iteration over Points of a Character
+```c++
+// Setup image array
+int width = 29; // Characters are 5 wide, plus 1 empty pixel between
+int height = 12; // Characters are 12 high
+std::vector<std::vector<ColorAlpha>> pixels = make_image_array(width, height);
+
+// Write "Hi :)" in black
+int offset = 0;
+for (const Point2& p : MONO_H) {
+    pixels[offset + p.x][p.y] = {0, 0, 0, 255};
+}
+offset += 6;
+for (const Point2& p : MONO_i) {
+    pixels[offset + p.x][p.y] = {0, 0, 0, 255};
+}
+offset += 6; // Do nothing for space
+offset += 6;
+for (const Point2& p : MONO_COLON) {
+    pixels[offset + p.x][p.y] = {0, 0, 0, 255};
+}
+offset += 6;
+for (const Point2& p : MONO_PARENTHESIS_RIGHT) {
+    pixels[offset + p.x][p.y] = {0, 0, 0, 255};
+}
+
+// Save the image, note origin at top-left
+save_bmp("banner.bmp", pixels, true);
 ```
 
 ### Loading Bars

@@ -48,6 +48,7 @@ Macros / Defines:
     DEBUG_BASIC(x): Prints variable/value name and type ONLY. Able to be used with atomic types
     LOCATION: A std::string "filename:line" corresponding to where this macro is used in the source code
     COMPILE_TIME: A std::string containing the time and date of program compilation
+    MONO_<CHARACTER/SYMBOL>: An array of Point2s referring to the (x,y) locations of color for that character in the monospace font. Origin is top-left. Dimensions: 5px ascender, 5x5px lowercase, 2px descender, add 1px space
 
 Testing Macros and Values:
     Unit test macros:
@@ -65,6 +66,10 @@ Testing Macros and Values:
         TEST_SUMMARY(): Print a number of test summary statistics, such as passed/total tests, test percentage, and a list of all failed tests, locations, and names (if any)
 
 Structs:
+    Point2: A basic 2D point (of integers)
+        Supported operators: <<
+    Point3: A basic 3D point (of integers)
+        Supported operators: <<
     Vector3: A basic 3D floating-point vector
         Supported operators: +, -, *, /, <<
         Supported functions: magnitude(Vector3), normalize(Vector3), cross(Vector3, Vector3), dot(Vector3, Vector3), angle(Vector3, Vector3)
@@ -79,26 +84,66 @@ Structs:
     BMPHeader: Header for all Bitmap image data, as well as default values, constructor provided
 
 Functions:
-    save_bmp(const std::string& filepath, const std::vector<std::vector<ColorAlpha>> pixels, bool origin_at_top_left = true): Saves a ColorAlpha vector as an image
-    std::vector<std::vector<ColorAlpha>> make_image_array(int width, int height): Makes and returns a blank (white) ColorAlpha array of the given dimensions
-    std::string load_file(const std::string& filepath): Loads all data within a file and returns as a C++ string
-    Color heatmap(float val): Changes a normalized val in range [0.0, 1.0] into a 7-color heatmap color
-    Color random_color(const Color& c1, const Color& c2): Returns a random color linearly interpolated between the two given colors
-    Color linear_color(float percent, const Color& c1, const Color& c2): Returns the color percent of the way through the linear range between the colors. Percent in range [0.0, 1.0]
-    Color hsv_to_rgb(ColorHSV hsv): Quickly (not accurately) converts an HSV color to a RGB color
-    ColorHSV rgb_to_hsv(Color rgb): Quickly (not accurately) converts an RGB color to a HSV color
-    std::string base64_encode(const std::string &in): Converts an input string into base64 data using standard encoding
-    std::string base64_decode(const std::string &in): Converts an input string from base64 data using standard encoding
-    std::string trim_spaces(const std::string& source): Trims leading / trailing spaces (and only spaces)
-    int get_digit_at_index(int source, int index, int base = 10): Returns the number at the given index of the base number (from right)
-    int get_number_length(int source, int base = 10): Returns the length of the given number, in base-10 digits by default
-    unsigned int collapse_index(unsigned int x, unsigned int y, unsigned int width) Collapses a 2D array index into a 1D array index in row-major order
-        also available as collapse_index(x, y, z, width, height) for 3D -> 1D conversion
-    write_pod(), read_pod(), write_pod_vector(), and read_pod_vector() for templated general-purpose simple structure serialization
+    save_bmp(const std::string& filepath, const std::vector<std::vector<ColorAlpha>> pixels, bool origin_at_top_left = true)
+        Saves a ColorAlpha vector as an image
+    make_matrix_3x3(bool identity = true)
+        Blank or identity 3x3 matrix creation
+        returns std::vector<std::vector<float>>
+    matrix_multiply(std::vector<std::vector<float>>& lhs, std::vector<std::vector<float>>& rhs)
+        Matrix multiplication
+        returns std::vector<std::vector<float>>
+    make_image_array(int width, int height)
+        Makes and returns a blank (white) ColorAlpha array of the given dimensions
+        returns std::vector<std::vector<ColorAlpha>>
+    load_file(const std::string& filepath)
+        Loads all data within a file and returns as a C++ string
+        returns std::string
+    heatmap(float val)
+        Changes a normalized val in range [0.0, 1.0] into a 7-color heatmap color
+        returns Color
+    random_color(const Color& c1, const Color& c2)
+        Returns a random color linearly interpolated between the two given colors
+        returns Color
+    linear_color(float percent, const Color& c1, const Color& c2)
+        Returns the color percent of the way through the linear range between the colors. Percent in range [0.0, 1.0]
+        returns Color
+    hsv_to_rgb(ColorHSV hsv)
+        Quickly (not accurately) converts an HSV color to a RGB color
+        returns Color
+    rgb_to_hsv(Color rgb)
+        Quickly (not accurately) converts an RGB color to a HSV color
+        returns ColorHSV
+    base64_encode(const std::string &in)
+        Converts an input string into base64 data using standard encoding
+        returns std::string
+    base64_decode(const std::string &in)
+        Converts an input string from base64 data using standard encoding
+        returns std::string
+    trim_spaces(const std::string& source)
+        Trims leading / trailing spaces (and only spaces)
+        returns std::string
+    get_digit_at_index(int source, int index, int base = 10)
+        Returns the number at the given index of the base number (from right)
+        returns int
+    get_number_length(int source, int base = 10)
+        Returns the length of the given number, in base-10 digits by default
+        returns int
+    collapse_index(unsigned int x, unsigned int y, unsigned int width)
+        Collapses a 2D array index into a 1D array index in row-major order
+            also available as collapse_index(x, y, z, width, height) for 3D -> 1D conversion
+        returns unsigned int
+    write_pod(std::ofstream& out, T& t), read_pod(std::ofstream& in, T& t), write_pod_vector(std::ofstream& out, std::vector<T>& vect), and read_pod_vector(std::ofstream& in, std::vector<T>& vect)
+        templated general-purpose simple structure serialization
     easeIn/Out double functions for every easing function found at https://easings.net/
-    void stream_loading_bar(std::ostream& out, float percent, const std::string& title = "", int bar_width = 0, int count_finished = -1, int count_total = -1): Sends a loading bar to stream (no terminating newline), slow at the moment
-    std::vector<std::string> extract_vector(const std::string& input, char delimiter = ',', const std::string& ignored_characters = " \n\t[](){}"): Turns an input std::string into a vector of extracted value strings, including an intelligent delimiter and a section of ignored characters
-    std::map<std::string, std::string> extract_map(const std::string& input, char keyval_delimiter = '=', char entry_delimiter = '\n', const std::string& ignored_characters = " \t[](){}"): Splits an input std::string into a map of key/value pairs based on input delimiters and ignored characters
+        examples: easeLinear(), easeInQuad(), easeInOutExpo(), etc.
+    stream_loading_bar(std::ostream& out, float percent, const std::string& title = "", int bar_width = 0, int count_finished = -1, int count_total = -1)
+        Sends a loading bar to stream (carriage return, no terminating newline), somewhat slow at the moment
+    extract_vector(const std::string& input, char delimiter = ',', const std::string& ignored_characters = " \n\t[](){}")
+        Turns an input std::string into a vector of extracted value strings, including an intelligent delimiter and a section of ignored characters
+        returns std::vector<std::string>
+    extract_map(const std::string& input, char keyval_delimiter = '=', char entry_delimiter = '\n', const std::string& ignored_characters = " \t[](){}")
+        Splits an input std::string into a map of key/value pairs based on input delimiters and ignored characters
+        returns std::map<std::string, std::string>
 
 Classes:
     FastBoolGenerator: A really, really fast boolean value generator with pretty random distribution. Use () operator for use.
@@ -113,6 +158,8 @@ Classes:
             []: Access the element at offset within the buffer, safely, with looping. Supports negative indexes.
 
 --- Future Work ---
+Generalized structure message construction for serialization, network communication, events, pub/sub models, etc.
+ROS-like event-driven topic publisher and subscriber model
 A point struct and a system to iterate over certain coordinates, such as all in a circle or within a letter or the like
 a define-based system that can remove large sections of code for different debug/release compilations, such as unit tests, print statements, and anything else
 basic defines for Color structs for the 8 terminal colors
@@ -227,6 +274,31 @@ namespace Alexandria {
 #endif
 
 ////////// STRUCTS //////////
+
+// Ultra-basic 2D point
+struct Point2 {
+    int x;
+    int y;
+};
+
+// Point2 streaming/printing
+std::ostream& operator << (std::ostream& out, const Point2& rhs) {
+    out << "(" << rhs.x << ", " << rhs.y << ")";
+    return out;
+}
+
+// Ultra-basic 3D point
+struct Point3 {
+    int x;
+    int y;
+    int z;
+};
+
+// Point3 streaming/printing
+std::ostream& operator << (std::ostream& out, const Point3& rhs) {
+    out << "(" << rhs.x << ", " << rhs.y << ", " << rhs.z << ")";
+    return out;
+}
 
 // A basic 3D floating-point vector
 struct Vector3 {
@@ -444,6 +516,36 @@ std::vector<std::vector<float>> make_matrix_3x3(bool identity = true) {
         return std::vector<std::vector<float>>{{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
     }
 }
+
+// Multiplies two matrices of identical dimensions together
+std::vector<std::vector<float>> matrix_multiply(std::vector<std::vector<float>>& lhs, std::vector<std::vector<float>>& rhs) {
+    // Validate matrix sizes
+    if (lhs[0].size() != rhs.size()) {
+        throw std::invalid_argument("Matrix multiplication only defined for matrices of shapes n*m & m*p");
+    }
+
+    // Helpful defines
+    int n = lhs.size();
+    int m = lhs[0].size();
+    int p = rhs[0].size();
+
+    // Make a new matrix of the correct size (n*p)
+    std::vector<std::vector<float>> result = std::vector<std::vector<float>>(n, std::vector<float>(p, 0.0));
+
+    // Multiply
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < p; j++) {
+            float acc = 0;
+            for (int k = 0; k < m; k++) {
+                acc += lhs[i][k] * rhs[k][j];
+            }
+            result[i][j] = acc;
+        }
+    }
+
+    return result;
+}
+
 
 // Makes and returns a blank (white) ColorAlpha array of the given dimensions
 std::vector<std::vector<ColorAlpha>> make_image_array(int width, int height) {
@@ -1138,6 +1240,104 @@ private:
     //typename std::vector<T>::iterator it = contents.begin(); // The current position of the "beginning" of the buffer
     // Functions
 };
+
+////////// SUPER-LONG DEFINES //////////
+
+// Monogram font hard-coded pixel defines
+// Source: https://datagoblin.itch.io/monogram
+#define MONO_0 (Point2[]){{1, 3}, {2, 3}, {3, 3}, {0, 4}, {4, 4}, {0, 5}, {3, 5}, {4, 5}, {0, 6}, {2, 6}, {4, 6}, {0, 7}, {1, 7}, {4, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}}
+#define MONO_1 (Point2[]){{2, 3}, {1, 4}, {2, 4}, {2, 5}, {2, 6}, {2, 7}, {2, 8}, {0, 9}, {1, 9}, {2, 9}, {3, 9}, {4, 9}}
+#define MONO_2 (Point2[]){{1, 3}, {2, 3}, {3, 3}, {0, 4}, {4, 4}, {4, 5}, {3, 6}, {2, 7}, {1, 8}, {0, 9}, {1, 9}, {2, 9}, {3, 9}, {4, 9}}
+#define MONO_3 (Point2[]){{1, 3}, {2, 3}, {3, 3}, {0, 4}, {4, 4}, {4, 5}, {2, 6}, {3, 6}, {4, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}}
+#define MONO_4 (Point2[]){{1, 3}, {4, 3}, {1, 4}, {4, 4}, {0, 5}, {4, 5}, {0, 6}, {1, 6}, {2, 6}, {3, 6}, {4, 6}, {4, 7}, {4, 8}, {4, 9}}
+#define MONO_5 (Point2[]){{0, 3}, {1, 3}, {2, 3}, {3, 3}, {4, 3}, {0, 4}, {0, 5}, {1, 5}, {2, 5}, {3, 5}, {4, 6}, {4, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}}
+#define MONO_6 (Point2[]){{1, 3}, {2, 3}, {3, 3}, {0, 4}, {0, 5}, {0, 6}, {1, 6}, {2, 6}, {3, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}}
+#define MONO_7 (Point2[]){{0, 3}, {1, 3}, {2, 3}, {3, 3}, {4, 3}, {4, 4}, {4, 5}, {3, 6}, {2, 7}, {2, 8}, {2, 9}}
+#define MONO_8 (Point2[]){{1, 3}, {2, 3}, {3, 3}, {0, 4}, {4, 4}, {0, 5}, {4, 5}, {1, 6}, {2, 6}, {3, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}}
+#define MONO_9 (Point2[]){{1, 3}, {2, 3}, {3, 3}, {0, 4}, {4, 4}, {0, 5}, {4, 5}, {1, 6}, {2, 6}, {3, 6}, {4, 6}, {4, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}}
+#define MONO_A (Point2[]){{1, 3}, {2, 3}, {3, 3}, {0, 4}, {4, 4}, {0, 5}, {4, 5}, {0, 6}, {4, 6}, {0, 7}, {1, 7}, {2, 7}, {3, 7}, {4, 7}, {0, 8}, {4, 8}, {0, 9}, {4, 9}}
+#define MONO_B (Point2[]){{0, 3}, {1, 3}, {2, 3}, {3, 3}, {0, 4}, {4, 4}, {0, 5}, {4, 5}, {0, 6}, {1, 6}, {2, 6}, {3, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {0, 9}, {1, 9}, {2, 9}, {3, 9}}
+#define MONO_C (Point2[]){{1, 3}, {2, 3}, {3, 3}, {0, 4}, {4, 4}, {0, 5}, {0, 6}, {0, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}}
+#define MONO_D (Point2[]){{0, 3}, {1, 3}, {2, 3}, {3, 3}, {0, 4}, {4, 4}, {0, 5}, {4, 5}, {0, 6}, {4, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {0, 9}, {1, 9}, {2, 9}, {3, 9}}
+#define MONO_E (Point2[]){{0, 3}, {1, 3}, {2, 3}, {3, 3}, {4, 3}, {0, 4}, {0, 5}, {0, 6}, {1, 6}, {2, 6}, {3, 6}, {0, 7}, {0, 8}, {0, 9}, {1, 9}, {2, 9}, {3, 9}, {4, 9}}
+#define MONO_F (Point2[]){{0, 3}, {1, 3}, {2, 3}, {3, 3}, {4, 3}, {0, 4}, {0, 5}, {0, 6}, {1, 6}, {2, 6}, {3, 6}, {0, 7}, {0, 8}, {0, 9}}
+#define MONO_G (Point2[]){{1, 3}, {2, 3}, {3, 3}, {0, 4}, {4, 4}, {0, 5}, {0, 6}, {2, 6}, {3, 6}, {4, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}}
+#define MONO_H (Point2[]){{0, 3}, {4, 3}, {0, 4}, {4, 4}, {0, 5}, {4, 5}, {0, 6}, {1, 6}, {2, 6}, {3, 6}, {4, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {0, 9}, {4, 9}}
+#define MONO_I (Point2[]){{0, 3}, {1, 3}, {2, 3}, {3, 3}, {4, 3}, {2, 4}, {2, 5}, {2, 6}, {2, 7}, {2, 8}, {0, 9}, {1, 9}, {2, 9}, {3, 9}, {4, 9}}
+#define MONO_J (Point2[]){{4, 3}, {4, 4}, {4, 5}, {4, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}}
+#define MONO_K (Point2[]){{0, 3}, {4, 3}, {0, 4}, {3, 4}, {0, 5}, {2, 5}, {0, 6}, {1, 6}, {0, 7}, {2, 7}, {0, 8}, {3, 8}, {0, 9}, {4, 9}}
+#define MONO_L (Point2[]){{0, 3}, {0, 4}, {0, 5}, {0, 6}, {0, 7}, {0, 8}, {0, 9}, {1, 9}, {2, 9}, {3, 9}, {4, 9}}
+#define MONO_M (Point2[]){{0, 3}, {4, 3}, {0, 4}, {1, 4}, {3, 4}, {4, 4}, {0, 5}, {2, 5}, {4, 5}, {0, 6}, {4, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {0, 9}, {4, 9}}
+#define MONO_N (Point2[]){{0, 3}, {4, 3}, {0, 4}, {4, 4}, {0, 5}, {1, 5}, {4, 5}, {0, 6}, {2, 6}, {4, 6}, {0, 7}, {3, 7}, {4, 7}, {0, 8}, {4, 8}, {0, 9}, {4, 9}}
+#define MONO_O (Point2[]){{1, 3}, {2, 3}, {3, 3}, {0, 4}, {4, 4}, {0, 5}, {4, 5}, {0, 6}, {4, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}}
+#define MONO_P (Point2[]){{0, 3}, {1, 3}, {2, 3}, {3, 3}, {0, 4}, {4, 4}, {0, 5}, {4, 5}, {0, 6}, {1, 6}, {2, 6}, {3, 6}, {0, 7}, {0, 8}, {0, 9}}
+#define MONO_Q (Point2[]){{1, 3}, {2, 3}, {3, 3}, {0, 4}, {4, 4}, {0, 5}, {4, 5}, {0, 6}, {4, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}, {3, 10}, {4, 10}}
+#define MONO_R (Point2[]){{0, 3}, {1, 3}, {2, 3}, {3, 3}, {0, 4}, {4, 4}, {0, 5}, {4, 5}, {0, 6}, {1, 6}, {2, 6}, {3, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {0, 9}, {4, 9}}
+#define MONO_S (Point2[]){{1, 3}, {2, 3}, {3, 3}, {0, 4}, {4, 4}, {0, 5}, {1, 6}, {2, 6}, {3, 6}, {4, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}}
+#define MONO_T (Point2[]){{0, 3}, {1, 3}, {2, 3}, {3, 3}, {4, 3}, {2, 4}, {2, 5}, {2, 6}, {2, 7}, {2, 8}, {2, 9}}
+#define MONO_U (Point2[]){{0, 3}, {4, 3}, {0, 4}, {4, 4}, {0, 5}, {4, 5}, {0, 6}, {4, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}}
+#define MONO_V (Point2[]){{0, 3}, {4, 3}, {0, 4}, {4, 4}, {0, 5}, {4, 5}, {0, 6}, {4, 6}, {1, 7}, {3, 7}, {1, 8}, {3, 8}, {2, 9}}
+#define MONO_W (Point2[]){{0, 3}, {4, 3}, {0, 4}, {4, 4}, {0, 5}, {4, 5}, {0, 6}, {4, 6}, {0, 7}, {2, 7}, {4, 7}, {0, 8}, {1, 8}, {3, 8}, {4, 8}, {0, 9}, {4, 9}}
+#define MONO_X (Point2[]){{0, 3}, {4, 3}, {0, 4}, {4, 4}, {1, 5}, {3, 5}, {2, 6}, {1, 7}, {3, 7}, {0, 8}, {4, 8}, {0, 9}, {4, 9}}
+#define MONO_Y (Point2[]){{0, 3}, {4, 3}, {0, 4}, {4, 4}, {1, 5}, {3, 5}, {2, 6}, {2, 7}, {2, 8}, {2, 9}}
+#define MONO_Z (Point2[]){{0, 3}, {1, 3}, {2, 3}, {3, 3}, {4, 3}, {4, 4}, {3, 5}, {2, 6}, {1, 7}, {0, 8}, {0, 9}, {1, 9}, {2, 9}, {3, 9}, {4, 9}}
+#define MONO_a (Point2[]){{1, 5}, {2, 5}, {3, 5}, {4, 5}, {0, 6}, {4, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}, {4, 9}}
+#define MONO_b (Point2[]){{0, 3}, {0, 4}, {0, 5}, {1, 5}, {2, 5}, {3, 5}, {0, 6}, {4, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {0, 9}, {1, 9}, {2, 9}, {3, 9}}
+#define MONO_c (Point2[]){{1, 5}, {2, 5}, {3, 5}, {0, 6}, {4, 6}, {0, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}}
+#define MONO_d (Point2[]){{4, 3}, {4, 4}, {1, 5}, {2, 5}, {3, 5}, {4, 5}, {0, 6}, {4, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}, {4, 9}}
+#define MONO_e (Point2[]){{1, 5}, {2, 5}, {3, 5}, {0, 6}, {4, 6}, {0, 7}, {1, 7}, {2, 7}, {3, 7}, {4, 7}, {0, 8}, {1, 9}, {2, 9}, {3, 9}}
+#define MONO_f (Point2[]){{2, 3}, {3, 3}, {1, 4}, {4, 4}, {1, 5}, {0, 6}, {1, 6}, {2, 6}, {3, 6}, {1, 7}, {1, 8}, {1, 9}}
+#define MONO_g (Point2[]){{1, 5}, {2, 5}, {3, 5}, {4, 5}, {0, 6}, {4, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}, {4, 9}, {4, 10}, {1, 11}, {2, 11}, {3, 11}}
+#define MONO_h (Point2[]){{0, 3}, {0, 4}, {0, 5}, {1, 5}, {2, 5}, {3, 5}, {0, 6}, {4, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {0, 9}, {4, 9}}
+#define MONO_i (Point2[]){{2, 3}, {1, 5}, {2, 5}, {2, 6}, {2, 7}, {2, 8}, {0, 9}, {1, 9}, {2, 9}, {3, 9}, {4, 9}}
+#define MONO_j (Point2[]){{4, 3}, {3, 5}, {4, 5}, {4, 6}, {4, 7}, {4, 8}, {4, 9}, {0, 10}, {4, 10}, {1, 11}, {2, 11}, {3, 11}}
+#define MONO_k (Point2[]){{0, 3}, {0, 4}, {0, 5}, {4, 5}, {0, 6}, {3, 6}, {0, 7}, {1, 7}, {2, 7}, {0, 8}, {3, 8}, {0, 9}, {4, 9}}
+#define MONO_l (Point2[]){{0, 3}, {1, 3}, {1, 4}, {1, 5}, {1, 6}, {1, 7}, {1, 8}, {2, 9}, {3, 9}, {4, 9}}
+#define MONO_m (Point2[]){{0, 5}, {1, 5}, {2, 5}, {3, 5}, {0, 6}, {2, 6}, {4, 6}, {0, 7}, {2, 7}, {4, 7}, {0, 8}, {2, 8}, {4, 8}, {0, 9}, {2, 9}, {4, 9}}
+#define MONO_n (Point2[]){{0, 5}, {1, 5}, {2, 5}, {3, 5}, {0, 6}, {4, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {0, 9}, {4, 9}}
+#define MONO_o (Point2[]){{1, 5}, {2, 5}, {3, 5}, {0, 6}, {4, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}}
+#define MONO_p (Point2[]){{0, 5}, {1, 5}, {2, 5}, {3, 5}, {0, 6}, {4, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {0, 9}, {1, 9}, {2, 9}, {3, 9}, {0, 10}, {0, 11}}
+#define MONO_q (Point2[]){{1, 5}, {2, 5}, {3, 5}, {4, 5}, {0, 6}, {4, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}, {4, 9}, {4, 10}, {4, 11}}
+#define MONO_r (Point2[]){{0, 5}, {2, 5}, {3, 5}, {0, 6}, {1, 6}, {4, 6}, {0, 7}, {0, 8}, {0, 9}}
+#define MONO_s (Point2[]){{1, 5}, {2, 5}, {3, 5}, {4, 5}, {0, 6}, {1, 7}, {2, 7}, {3, 7}, {4, 8}, {0, 9}, {1, 9}, {2, 9}, {3, 9}}
+#define MONO_t (Point2[]){{1, 3}, {1, 4}, {0, 5}, {1, 5}, {2, 5}, {3, 5}, {1, 6}, {1, 7}, {1, 8}, {2, 9}, {3, 9}, {4, 9}}
+#define MONO_u (Point2[]){{0, 5}, {4, 5}, {0, 6}, {4, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}, {4, 9}}
+#define MONO_v (Point2[]){{0, 5}, {4, 5}, {0, 6}, {4, 6}, {0, 7}, {4, 7}, {1, 8}, {3, 8}, {2, 9}}
+#define MONO_w (Point2[]){{0, 5}, {4, 5}, {0, 6}, {4, 6}, {0, 7}, {2, 7}, {4, 7}, {0, 8}, {2, 8}, {4, 8}, {1, 9}, {3, 9}}
+#define MONO_x (Point2[]){{0, 5}, {4, 5}, {1, 6}, {3, 6}, {2, 7}, {1, 8}, {3, 8}, {0, 9}, {4, 9}}
+#define MONO_y (Point2[]){{0, 5}, {4, 5}, {0, 6}, {4, 6}, {0, 7}, {4, 7}, {0, 8}, {4, 8}, {1, 9}, {2, 9}, {3, 9}, {4, 9}, {4, 10}, {1, 11}, {2, 11}, {3, 11}}
+#define MONO_z (Point2[]){{0, 5}, {1, 5}, {2, 5}, {3, 5}, {4, 5}, {3, 6}, {2, 7}, {1, 8}, {0, 9}, {1, 9}, {2, 9}, {3, 9}, {4, 9}}
+#define MONO_AMPERSAND (Point2[]){{1, 3}, {2, 3}, {0, 4}, {3, 4}, {0, 5}, {3, 5}, {1, 6}, {2, 6}, {3, 6}, {4, 6}, {0, 7}, {3, 7}, {0, 8}, {3, 8}, {1, 9}, {2, 9}, {4, 9}}
+#define MONO_ANGLE_BRACKET_LEFT (Point2[]){{3, 4}, {4, 4}, {1, 5}, {2, 5}, {0, 6}, {1, 7}, {2, 7}, {3, 8}, {4, 8}}
+#define MONO_ANGLE_BRACKET_RIGHT (Point2[]){{0, 4}, {1, 4}, {2, 5}, {3, 5}, {4, 6}, {2, 7}, {3, 7}, {0, 8}, {1, 8}}
+#define MONO_APOSTROPHE (Point2[]){{2, 3}, {2, 4}, {2, 5}}
+#define MONO_ASTERISK (Point2[]){{2, 4}, {0, 5}, {2, 5}, {4, 5}, {1, 6}, {2, 6}, {3, 6}, {0, 7}, {2, 7}, {4, 7}, {2, 8}}
+#define MONO_AT_SYMBOL (Point2[]){{1, 3}, {2, 3}, {3, 3}, {0, 4}, {3, 4}, {4, 4}, {0, 5}, {2, 5}, {4, 5}, {0, 6}, {2, 6}, {4, 6}, {0, 7}, {3, 7}, {4, 7}, {0, 8}, {1, 9}, {2, 9}, {3, 9}}
+#define MONO_BACKSLASH (Point2[]){{0, 3}, {0, 4}, {1, 5}, {2, 6}, {3, 7}, {4, 8}, {4, 9}}
+#define MONO_CARAT (Point2[]){{2, 3}, {1, 4}, {3, 4}, {0, 5}, {4, 5}}
+#define MONO_COLON (Point2[]){{2, 4}, {2, 5}, {2, 8}, {2, 9}}
+#define MONO_COMMA (Point2[]){{2, 8}, {2, 9}, {1, 10}}
+#define MONO_CURLY_BRACKET_LEFT (Point2[]){{3, 3}, {2, 4}, {2, 5}, {1, 6}, {2, 7}, {2, 8}, {3, 9}}
+#define MONO_CURLY_BRACKET_RIGHT (Point2[]){{1, 3}, {2, 4}, {2, 5}, {3, 6}, {2, 7}, {2, 8}, {1, 9}}
+#define MONO_DOLLAR_SIGN (Point2[]){{2, 3}, {1, 4}, {2, 4}, {3, 4}, {4, 4}, {0, 5}, {2, 5}, {1, 6}, {2, 6}, {3, 6}, {2, 7}, {4, 7}, {0, 8}, {1, 8}, {2, 8}, {3, 8}, {2, 9}}
+#define MONO_EQUALS (Point2[]){{0, 5}, {1, 5}, {2, 5}, {3, 5}, {4, 5}, {0, 7}, {1, 7}, {2, 7}, {3, 7}, {4, 7}}
+#define MONO_EXCLAMATION_POINT (Point2[]){{2, 3}, {2, 4}, {2, 5}, {2, 6}, {2, 7}, {2, 9}}
+#define MONO_FORWARD_SLASH (Point2[]){{4, 3}, {4, 4}, {3, 5}, {2, 6}, {1, 7}, {0, 8}, {0, 9}}
+#define MONO_HYPHEN (Point2[]){{0, 6}, {1, 6}, {2, 6}, {3, 6}, {4, 6}}
+#define MONO_PARENTHESIS_LEFT (Point2[]){{3, 3}, {2, 4}, {2, 5}, {2, 6}, {2, 7}, {2, 8}, {3, 9}}
+#define MONO_PARENTHESIS_RIGHT (Point2[]){{1, 3}, {2, 4}, {2, 5}, {2, 6}, {2, 7}, {2, 8}, {1, 9}}
+#define MONO_PERCENTAGE (Point2[]){{0, 3}, {4, 3}, {0, 4}, {4, 4}, {3, 5}, {2, 6}, {1, 7}, {0, 8}, {4, 8}, {0, 9}, {4, 9}}
+#define MONO_PERIOD (Point2[]){{2, 8}, {2, 9}}
+#define MONO_PIPE (Point2[]){{2, 3}, {2, 4}, {2, 5}, {2, 6}, {2, 7}, {2, 8}, {2, 9}}
+#define MONO_PLUS (Point2[]){{2, 4}, {2, 5}, {0, 6}, {1, 6}, {2, 6}, {3, 6}, {4, 6}, {2, 7}, {2, 8}}
+#define MONO_POUND_SIGN (Point2[]){{1, 4}, {3, 4}, {0, 5}, {1, 5}, {2, 5}, {3, 5}, {4, 5}, {1, 6}, {3, 6}, {1, 7}, {3, 7}, {0, 8}, {1, 8}, {2, 8}, {3, 8}, {4, 8}, {1, 9}, {3, 9}}
+#define MONO_QUESTION_MARK (Point2[]){{1, 3}, {2, 3}, {3, 3}, {0, 4}, {4, 4}, {4, 5}, {3, 6}, {2, 7}, {2, 9}}
+#define MONO_QUOTATION_MARK (Point2[]){{1, 3}, {3, 3}, {1, 4}, {3, 4}, {1, 5}, {3, 5}}
+#define MONO_SEMICOLON (Point2[]){{2, 4}, {2, 5}, {2, 8}, {2, 9}, {1, 10}}
+#define MONO_SQUARE_BRACKET_LEFT (Point2[]){{2, 3}, {3, 3}, {2, 4}, {2, 5}, {2, 6}, {2, 7}, {2, 8}, {2, 9}, {3, 9}}
+#define MONO_SQUARE_BRACKET_RIGHT (Point2[]){{1, 3}, {2, 3}, {2, 4}, {2, 5}, {2, 6}, {2, 7}, {2, 8}, {1, 9}, {2, 9}}
+#define MONO_TILDE (Point2[]){{1, 5}, {4, 5}, {0, 6}, {2, 6}, {3, 6}}
+#define MONO_UNDERSCORE (Point2[]){{0, 9}, {1, 9}, {2, 9}, {3, 9}, {4, 9}}
 
 ////////// CLEANUP //////////
 
