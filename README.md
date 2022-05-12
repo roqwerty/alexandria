@@ -101,6 +101,32 @@ std::string build_time = COMPILE_TIME;
 std::cout << location << " in build " << build_time << std::endl;
 ```
 
+### Vector File Saving/Loading
+```c++
+// Create some data
+std::vector<char> data = {'H', 'i', ' ', ':', ')'};
+
+// Write data vector to file
+std::ofstream f("vec.data");
+if (f.good()) {
+    write_pod_vector<char>(f, data);
+    f.close();
+}
+
+// Read vector from file
+std::vector<char> read;
+std::ifstream g("vec.data");
+if (g.good()) {
+    read_pod_vector<char>(g, read);
+    g.close();
+}
+
+// Print results
+for (char a : read) {
+    std::cout << a << std::endl;
+}
+```
+
 ### Colored Terminal Output
 Note that this only works for terminals that support ANSI escape codes ( e.g. bash, NOT Windows :< ).
 
