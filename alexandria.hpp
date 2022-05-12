@@ -144,6 +144,15 @@ Functions:
     extract_map(const std::string& input, char keyval_delimiter = '=', char entry_delimiter = '\n', const std::string& ignored_characters = " \t[](){}")
         Splits an input std::string into a map of key/value pairs based on input delimiters and ignored characters
         returns std::map<std::string, std::string>
+    get_os():
+        Returns a string that is the name of the compiled OS
+        returns std::string
+    get_abs_path(std::string file):
+        Returns the absolute path to the given file's absolute or relative path
+            Executable directory: get_abs_path("./")
+            Executable path: get_abs_path(std::string(argv[0]))
+        returns std::string
+
 
 Classes:
     FastBoolGenerator: A really, really fast boolean value generator with pretty random distribution. Use () operator for use.
@@ -163,7 +172,6 @@ ROS-like event-driven topic publisher and subscriber model
 A point struct and a system to iterate over certain coordinates, such as all in a circle or within a letter or the like
 a define-based system that can remove large sections of code for different debug/release compilations, such as unit tests, print statements, and anything else
 basic defines for Color structs for the 8 terminal colors
-matrix3 * matrix3 function
 to-stream functions for all classes
 ultra-basic 2D/3D physics engine wrapper using Verlet Integration: https://www.youtube.com/watch?v=lS_qeBy3aQI
     and friction: https://stackoverflow.com/questions/10270875/verlet-integrator-friction
@@ -201,6 +209,7 @@ Add a debug macro that just returns that string instead of printing it (requires
 #include <functional> // C++ functions-as-variables, used for some classes
 #include <stdexcept> // Clean and pretty exception throwing
 #include <iomanip> // std::setprecision
+#include <stdlib.h> // Pathnames and other utilities
 
 
 ////////// MACROS //////////
@@ -563,6 +572,7 @@ std::string load_file(const std::string& filepath) {
         f.seekg(0, std::ios::beg);
 
         str.assign((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+        f.close();
         return str;
     }
     else {
@@ -798,7 +808,7 @@ template<typename T>
 void write_pod_vector(std::ofstream& out, std::vector<T>& vect) {
     long size = vect.size();
     write_pod<long>(out, size);
-    out.write(reinterpret_cast<char*>(vect.front()), size * sizeof(T));
+    out.write(reinterpret_cast<char*>(vect.data()), size * sizeof(T));
 }
 
 // Reads an entire vector at once by prefixing it with the size of the vector in elements
@@ -808,7 +818,7 @@ void read_pod_vector(std::ifstream& in, std::vector<T>& vect) {
     long size;
     read_pod(in, size);
     vect.resize(size);
-    in.read(reinterpret_cast<char*>(vect.front()), size * sizeof(T));
+    in.read(reinterpret_cast<char*>(vect.data()), size * sizeof(T));
 }
 
 // Easing function defines for faster calculation
@@ -997,6 +1007,37 @@ std::map<std::string, std::string> extract_map(const std::string& input, char ke
         keyvals[e.substr(0, index)] = e.substr(index+1);
     }
     return keyvals;
+}
+
+// Returns a string that is the name of the compiled OS
+// Source: https://stackoverflow.com/questions/15580179/how-do-i-find-the-name-of-an-operating-system
+std::string get_os() {
+    #ifdef _WIN32
+    return "Windows 32-bit";
+    #elif _WIN64
+    return "Windows 64-bit";
+    #elif __APPLE__ || __MACH__
+    return "Mac OSX";
+    #elif __linux__
+    return "Linux";
+    #elif __FreeBSD__
+    return "FreeBSD";
+    #elif __unix || __unix__
+    return "Unix";
+    #else
+    return "Other";
+    #endif
+}
+
+// Returns the absolute path to the given file's absolute or relative path
+//  Executable directory: get_abs_path("./")
+//  Executable path: get_abs_path(std::string(argv[0]))
+// Source: https://pubs.opengroup.org/onlinepubs/000095399/functions/realpath.html
+std::string get_abs_path(std::string file) {
+    char* path_ptr = _fullpath(NULL, file.c_str(), 100);
+    std::string result(path_ptr);
+    free(path_ptr);
+    return result;
 }
 
 ////////// CLASSES //////////
