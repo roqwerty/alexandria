@@ -31,6 +31,7 @@ Released freely under the Unlicense, except where sources are cited.
 // Compilation Settings
 //#define USE_ALEXANDRIA_NAMESPACE // If uncommented or otherwise defined, will make ALL of the following (except macros and defines) part of the Alexandria:: namespace
 //#define USE_ALEXANDRIA_COLORLESS // Use colorless testing and output for other functions, useful for OSs like Windows that just don't play nice with color :<
+//#define DEBUG // If uncommented, logs, errors, and warnings will be printed to the console
 
 /*
 The purpose of the Alexandria library is to collect and standardize functions and utilities that I find myself using somewhat often
@@ -43,12 +44,20 @@ Remember to #include <stdlib.h> and srand(time(NULL)) if doing anything with ran
 
 Macros / Defines:
     T_<COLOR> and TB_<COLOR> for setting terminal foreground and background colors on bash-like terminals (not Windows, so define USE_ALEXANDRIA_COLORLESS above)
-    DEBUG(x): Prints a line of debug code containing information about a variable, including name in code, memory address, variable type, and value (through ostream <<)
-    DEBUG_NOVALUE(x): Prints a line identical to ^, but does not require a defined << operator for custom structs and classes
-    DEBUG_BASIC(x): Prints variable/value name and type ONLY. Able to be used with atomic types
-    LOCATION: A std::string "filename:line" corresponding to where this macro is used in the source code
+    INFO(x): Prints a line of debug code containing information about a variable, including name in code, memory address, variable type, and value (through ostream <<)
+    INFO_NOVALUE(x): Prints a line identical to ^, but does not require a defined << operator for custom structs and classes
+    INFO_BASIC(x): Prints variable/value name and type ONLY. Able to be used with atomic types
+    LOCATION: A std::string "filename:line:function" corresponding to where this macro is used in the source code
     COMPILE_TIME: A std::string containing the time and date of program compilation
     MONO_<CHARACTER/SYMBOL>: An array of Point2s referring to the (x,y) locations of color for that character in the monospace font. Origin is top-left. Dimensions: 5px ascender, 5x5px lowercase, 2px descender, add 1px space
+    TIME(x): Times whatever takes place within the parentheses and prints the elapsed time to the console
+    BLACK, WHITE, RED, GREEN, BLUE, YELLOW, CYAN, MAGENTA, GRAY: Color struct definitions for basic colors
+
+Debug Printing: (NOTE That these will only print if DEBUG is defined. Else, they compile as nothing)
+    LOG(x): Prints the string x as a blue log message
+    PASS(x): Prints the string x as a green pass message
+    WARNING(x): Prints the string x as a yellow warning message
+    ERROR(x): Prints the string x as a red error message
 
 Testing Macros and Values:
     Unit test macros:
@@ -76,9 +85,12 @@ Structs:
         Supported matrix helpers: native * operator (mat*vec3), make_matrix_3x3(bool identity)
     Color: A small RGB 256-bit color
         Supported operators: <<
+        Supported functions: to_grayscale()
     ColorAlpha: A small RGBA 256-bit color
         Supported operators: <<
-        Supported functions: ColorAlpha::fromFloat(float), ColorAlpha::toFloat() -> casts to/from a floating point number for serial transportation
+        Supported functions:
+            to_grayscale()
+            ColorAlpha::from_float(float), ColorAlpha::to_float() -> casts to/from a floating point number for serial transportation
     ColorHSV: A small HSV 256-bit color
         Supported operators: <<
     BMPHeader: Header for all Bitmap image data, as well as default values, constructor provided
@@ -101,6 +113,10 @@ Functions:
     heatmap(float val)
         Changes a normalized val in range [0.0, 1.0] into a 7-color heatmap color
         returns Color
+    doppler(float val)
+        Changes a normalized val in range [-1.0, 1.0] into either a red or blue color with intensity based on the magnitude of the value
+        Negative values become blue, and positive values become red
+        returns Color
     random_color(const Color& c1, const Color& c2)
         Returns a random color linearly interpolated between the two given colors
         returns Color
@@ -118,6 +134,9 @@ Functions:
         returns std::string
     base64_decode(const std::string &in)
         Converts an input string from base64 data using standard encoding
+        returns std::string
+    crypt(std::string input, std::string key)
+        Encrypts/decrypts a string using a key
         returns std::string
     trim_spaces(const std::string& source)
         Trims leading / trailing spaces (and only spaces)
@@ -144,6 +163,9 @@ Functions:
     extract_map(const std::string& input, char keyval_delimiter = '=', char entry_delimiter = '\n', const std::string& ignored_characters = " \t[](){}")
         Splits an input std::string into a map of key/value pairs based on input delimiters and ignored characters
         returns std::map<std::string, std::string>
+    split(const std::string& input, char delimiter = '\n')
+        Splits an input std::string into a vector of strings based on the given delimiter
+        returns std::vector<std::string>
     get_os():
         Returns a string that is the name of the compiled OS
         returns std::string
@@ -165,24 +187,44 @@ Classes:
             clear, insert(element), remove: Change the contents of the buffer (at current zero index)
             +=, -=, ++circle, circle++, --circle, circle--: Alter the position of the zero index safely, with looping. O(1)
             []: Access the element at offset within the buffer, safely, with looping. Supports negative indexes.
+    PythonicVector<type>: A wrapper for std::vector that allows python-like indexing and slicing natively
+        Supported operations:
+            [index] (indexing): Access the element at offset within the vector. Supports negative indexes.
+            (start, end) (slicing): Access the elements between the two offsets within the vector, non-inclusive.
+
+--- Recently Completed And Undocumented ---
+
+--- NOW ---
+String-based diff function
+A simple function to turn a string of text into a pretty text-based PDF (Courier for monospacing, perhaps line numbers, perhaps title header/page nums)
+    save_pdf()
+    Needed pre-parse info:
+        intelligent line numbers and word wrapping
+        length in bytes of all page streams
+        total number of pages
+        locations of everything in bytes within the file
 
 --- Future Work ---
+DEBUG-define-only log to file
+A rate-based main loop and callback strucure that can activate functions based on a rate in Hz
+Multidimensional vector extraction (copy work from HCR class)
+Simple code documentation maker (in markdown)
+Function to get a vector list in strings of all filepaths in a directory, even recursively
+A wrapper for fprintf(stdout, string, ...) just as "print()"
+A function to turn integers of a count of bytes into software/hardware KB/MB/GB summary strings
 Generalized structure message construction for serialization, network communication, events, pub/sub models, etc.
 ROS-like event-driven topic publisher and subscriber model
 A point struct and a system to iterate over certain coordinates, such as all in a circle or within a letter or the like
 a define-based system that can remove large sections of code for different debug/release compilations, such as unit tests, print statements, and anything else
-basic defines for Color structs for the 8 terminal colors
 to-stream functions for all classes
 ultra-basic 2D/3D physics engine wrapper using Verlet Integration: https://www.youtube.com/watch?v=lS_qeBy3aQI
     and friction: https://stackoverflow.com/questions/10270875/verlet-integrator-friction
 This color lookup map function: https://www.youtube.com/watch?v=HsOKwUwL1bE
 SDICL support and fast kernel interfacing
-Add a doppler heatmap-like function that maps "going-away" and "going-toward" black-blue-red-white colors to values in range [-1.0, 1.0]
 Make the extract functions templated like the string format function
 Regular expression expansion / mapping with returned variable environment map
 Fast calculation and return of a set of points in a circle around another point (from SDL_wrapper)
 Angle calculation between three points, with one as center. Multidimensional it.
-Ease-of-access functions for working with std::vectors with mutability similar to Python. Perhaps even a wrapper class
 Plotting functionality, even if basic. Save to BMP or image vector for users to display themselves.
 Serialization and un-serialization of N-dimensional vectors of basic types
 N-dimensional index to 1-dimensional index collapse
@@ -191,7 +233,9 @@ General-purpose raycasting structure and library, implemented to be as fast as p
     https://github.com/ssloy/tinyraycaster/wiki
 BigInt, like https://stackoverflow.com/questions/4507121/c-big-integer
 ---
+Benched:
 Add a debug macro that just returns that string instead of printing it (requires different overloads, so tabled for now)
+Numpy-like zeros and ones functions for making vectors automatically of different shapes and sizes (return types are nightmarish)
 */
 
 ////////// SETUP //////////
@@ -210,6 +254,7 @@ Add a debug macro that just returns that string instead of printing it (requires
 #include <stdexcept> // Clean and pretty exception throwing
 #include <iomanip> // std::setprecision
 #include <stdlib.h> // Pathnames and other utilities
+#include <chrono> // Time-based functions
 
 
 ////////// MACROS //////////
@@ -256,11 +301,27 @@ Add a debug macro that just returns that string instead of printing it (requires
 #endif
 
 // Debugging macros
-#define DEBUG(x) std::cout << #x << " @ " << &x <<  " (" << typeid(x).name() << ") = " << x << std::endl;
-#define DEBUG_NOVALUE(x) std::cout << #x << " @ " << &x << " (" << typeid(x).name() << ")" << std::endl;
-#define DEBUG_BASIC(x) std::cout << #x << " (" << typeid(x).name() << ")" << std::endl;
-#define LOCATION (std::string)__FILE__ + ":" + std::to_string(__LINE__)
+#define INFO(x) std::cout << #x << " @ " << &x <<  " (" << typeid(x).name() << ") = " << x << std::endl;
+#define INFO_NOVALUE(x) std::cout << #x << " @ " << &x << " (" << typeid(x).name() << ")" << std::endl;
+#define INFO_BASIC(x) std::cout << #x << " (" << typeid(x).name() << ")" << std::endl;
+#define LOCATION (std::string)__FILE__ + ":" + std::to_string(__LINE__) + ":" + std::to_string(__func__)
 #define COMPILE_TIME (std::string)(__TIME__) + " on " + (std::string)(__DATE__)
+
+// Debug printing macros
+#define PRINT_VECTOR(x) std::cout << #x << " = "; for (auto i : x) { std::cout << i << " "; } std::cout << std::endl;
+
+// Debug logging macros, only actually print if DEBUG is defined
+#ifdef DEBUG
+#define LOG(x) std::cout << T_BLUE << "LOG: " << T_RESET << x << std::endl;
+#define PASS(x) std::cout << T_GREEN << "PASS: " << T_RESET << x << std::endl;
+#define WARNING(x) std::cout << T_YELLOW << "WARNING: " << T_RESET << x << std::endl;
+#define ERROR(x) std::cout << T_RED << "ERROR: " << T_RESET << x << std::endl;
+#else
+#define LOG(x)
+#define PASS(x)
+#define WARNING(x)
+#define ERROR(x)
+#endif
 
 // Testing macros
 unsigned int TESTS_TOTAL = 0;
@@ -276,6 +337,9 @@ std::vector<std::string> TESTS_FAILURES;
 #define TEST_NAMED_NEQ(n, x, y) TESTS_TOTAL++; if (x != y) {TESTS_SUCCESSFUL++; if (!TESTS_SILENT) {std::cout << T_GREEN << "test \"" << n << "\" passed @ " << LOCATION << T_RESET << std::endl;}} else {TESTS_FAILURES.push_back(LOCATION + " (" + n + ")"); if (!TESTS_SILENT) {std::cout << T_RED << "TEST \"" << n << "\" FAILED @ " << LOCATION << T_RESET << std::endl << "\tinequating " << #x << " (" << x << ") to " << #y << " (" << y << ")" << std::endl;}}
 #define TEST_EPSILON_NEQ(x, y, e) TESTS_TOTAL++; if (abs(x - y) > e) {TESTS_SUCCESSFUL++; if (!TESTS_SILENT) {std::cout << T_GREEN << "test passed @ " << LOCATION << T_RESET << std::endl;}} else {TESTS_FAILURES.push_back(LOCATION); if (!TESTS_SILENT) {std::cout << T_RED << "TEST FAILED @ " << LOCATION << T_RESET << std::endl << "\tinequating " << #x << " (" << x << ") to " << #y << " (" << y << ")" << " with epsilon " << e << std::endl;}}
 #define TEST_SUMMARY() std::cout << T_CYAN << "+--------------+\n| TEST SUMMARY |\n+--------------+\n" << T_GREEN << "Passed " << TESTS_SUCCESSFUL << "/" << TESTS_TOTAL << " tests (" << (TESTS_SUCCESSFUL/(float)TESTS_TOTAL)*100.0 << "%)" << T_RESET << std::endl; if (TESTS_FAILURES.size() > 0) {std::cout << T_RED << "Failed tests:" << T_RESET << std::endl; for (const std::string& s : TESTS_FAILURES) {std::cout << "    " << s << std::endl;}}
+
+// Other Macros
+#define TIME(x) {auto start = std::chrono::high_resolution_clock::now(); x; auto end = std::chrono::high_resolution_clock::now(); std::cout << T_CYAN << "+-----------------+\n|    TIME TEST    |\n" << #x << "\n+-----------------+\n" << T_GREEN << "Time taken: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << " microseconds" << T_RESET << std::endl;}
 
 // Begin Alexandria namespace
 #ifdef USE_ALEXANDRIA_NAMESPACE
@@ -391,7 +455,23 @@ struct Color {
     uint8_t r;
     uint8_t g;
     uint8_t b;
+
+    // Returns a float in range [0, 1] representing the luminance of the color
+    float to_grayscale() {
+        return static_cast<float>(r) * 0.299f + static_cast<float>(g) * 0.587f + static_cast<float>(b) * 0.114f;
+    }
 };
+
+// Basic Color defines for 9 or so basic colors
+#define BLACK = (Color){0, 0, 0}
+#define WHITE = (Color){255, 255, 255}
+#define RED = (Color){255, 0, 0}
+#define GREEN = (Color){0, 255, 0}
+#define BLUE = (Color){0, 0, 255}
+#define YELLOW = (Color){255, 255, 0}
+#define CYAN = (Color){0, 255, 255}
+#define MAGENTA = (Color){255, 0, 255}
+#define GRAY = (Color){128, 128, 128}
 
 // Color streaming/printing
 std::ostream& operator << (std::ostream& out, const Color& rhs) {
@@ -406,13 +486,18 @@ struct ColorAlpha {
     uint8_t b;
     uint8_t a;
 
+    // Returns a float in range [0, 1] representing the luminance of the color
+    float to_grayscale() {
+        return static_cast<float>(r) * 0.299f + static_cast<float>(g) * 0.587f + static_cast<float>(b) * 0.114f;
+    }
+
     // Makes this color from a float
-    void fromFloat(float f) {
+    void from_float(float f) {
         memcpy(this, &f, 4);
     }
 
     // Returns this but as a float
-    float toFloat() {
+    float to_float() {
         float f = 0.0;
         memcpy(&f, this, 4);
         return f;
@@ -609,6 +694,17 @@ Color heatmap(float val) {
     return retc;
 }
 
+// Changes a normalized val in range [-1.0, 1.0] into a Doppler-effect like red or blue shift
+// Negative val will become blue with increasing intensity
+// Positive val will become red with increasing intensity
+Color doppler(float val) {
+    if (val < 0.0) {
+        return {0, 0, (uint8_t)(255.0 * abs(val))};
+    } else {
+        return {(uint8_t)(255.0 * val), 0, 0};
+    }
+}
+
 // Returns a random color linearly interpolated between the two given colors
 inline Color random_color(const Color& c1, const Color& c2) {
     float t = (float)rand() / RAND_MAX; // Between 0-1
@@ -749,6 +845,15 @@ static std::string base64_decode(const std::string &in) {
         }
     }
     return out;
+}
+
+// Encrypts/decrypts an input string using a key
+std::string crypt(std::string input, std::string key) {
+    std::string output;
+    for (int i = 0; i < input.length(); i++) {
+        output += char(input[i] ^ key[i % key.length()]);
+    }
+    return output;
 }
 
 // Trims leading / trailing spaces (and only spaces)
@@ -979,6 +1084,22 @@ std::vector<std::string> extract_vector(const std::string& input, char delimiter
     return values;
 }
 
+// Similar to extract_vector, but is much simpler
+std::vector<std::string> split(const std::string& input, char delimiter = '\n') {
+    std::vector<std::string> output;
+    std::string current = "";
+    for (char c : input) {
+        if (c == delimiter) {
+            output.push_back(current);
+            current = "";
+        } else {
+            current += c;
+        }
+    }
+    output.push_back(current);
+    return output;
+}
+
 // Splits an input std::string into a map of key/value pairs based on input delimiters and ignored characters
 std::map<std::string, std::string> extract_map(const std::string& input, char keyval_delimiter = '=', char entry_delimiter = '\n', const std::string& ignored_characters = " \t[](){}") {
     // Get entry lines
@@ -1038,6 +1159,120 @@ std::string get_abs_path(std::string file) {
     std::string result(path_ptr);
     free(path_ptr);
     return result;
+}
+
+/*// Acts like Linux' diff command, printing the difference between two strings
+void get_diff(const std::string& one, const std::string& two) {
+    std::vector<std::string> lines_one = split(one, '\n');
+    std::vector<std::string> lines_two = split(two, '\n');
+    int j = 0;
+    for (int i = 0; i < lines_one.size(); i++) {
+        // If j is out of bounds, print the rest of one's lines
+        if (j >= lines_two.size()) {
+            for (; i < lines_one.size(); i++) {
+                std::cout << "-" << lines_one[i] << std::endl;
+            }
+        }
+
+        if (lines_one[i] == lines_two[j]) {
+            // Lines are the same, advance
+            j++;
+        } else {
+            // Lines are different, find out the next index where they match again
+            // Is there an extra line in one?
+            for (int k = i+1; k < lines_one.size(); k++) {
+                if (lines_one[k] == lines_two[j]) {
+                    // Found a match, print the diff
+                    for (int l = i; l < k; l++) {
+                        std::cout << "-" << lines_one[l] << std::endl;
+                    }
+                    // Align indexes
+                    i = k;
+                    j++;
+                    break;
+                }
+            }
+            // Is there an extra line in two?
+            for (int k = j+1; k < lines_two.size(); k++) {
+                if (lines_one[i] == lines_two[k]) {
+                    // Found a match, print the diff
+                    for (int l = j; l < k; l++) {
+                        std::cout << "+" << lines_two[l] << std::endl;
+                    }
+                    // Align indexes
+                    j = k;
+                    j++;
+                    break;
+                }
+            }
+            // These are different lines, print them
+            std::cout << "@1: " << lines_one[i] << std::endl;
+            std::cout << "@2: " << lines_two[j] << std::endl;
+            j++;
+        }
+    }
+
+    // If we still have lines in two, print them
+    for (; j < lines_two.size(); j++) {
+        std::cout << "+" << lines_two[j] << std::endl;
+    }
+}*/
+
+// Defines for PDF things
+#define PDF_CHARS_BEFORE_WRAP 76 // Number of characters to be printed before a word wrap
+#define PDF_LINES_IN_PAGE 54 // Number of lines that fit on a page
+
+// Saves a PDF based off of the given input data to disk. Uses intelligent line wrapping and optionally line numbers
+void save_pdf(const std::string& data, const std::string& filepath, bool use_line_numbers = false) {
+    // Make a cleaned version of the data based on word wrapping
+    //std::vector<std::string> pages; // A collection of cleaned pages
+    //std::string page = ""; // The current page
+    std::vector<std::vector<std::string>> pages; // A collection of cleaned pages, composed of vectors of lines
+    std::vector<std::string> alllines; // A collection of all lines to be split into pages
+    int chars_in_line = 0; // Number of characters in the current line
+    int lines = 0; // Number of lines in this page
+    //int line_num = 1; // The line number of the current line in data
+
+    std::cout << "\n  ---  \nUNFINISHED\n  ---   " << std::endl;
+
+    /*// Clean the input
+    for (char c : data) {
+        if (c == '\r') {} // Eat carriage returns
+        else if (c == '\n') {
+            if (lines < PDF_LINES_IN_PAGE) {
+                // Add to this page
+                page += "\n";
+                chars_in_line = 0;
+                lines++;
+            } else {
+                // Move on to next page
+                pages.push_back(page);
+                page = "";
+                chars_in_line = 0;
+                lines = 0;
+            }
+        } else {
+            if (chars_in_line < PDF_CHARS_BEFORE_WRAP) {
+                page += c;
+                chars_in_line++;
+            } else {
+                // Add line with wrap
+                if (lines < PDF_LINES_IN_PAGE) {
+                    // Add to this page
+                    page += c + "\n";
+                    chars_in_line = 0;
+                    lines++;
+                } else {
+                    // Move on to next page
+                    pages.push_back(page);
+                    page = c + "";
+                    chars_in_line = 1;
+                    lines = 0;
+                }
+        }
+    }*/
+    
+    // Setup header information
 }
 
 ////////// CLASSES //////////
@@ -1280,6 +1515,69 @@ private:
     int index = 0; // The index of the current data element as the "beginning" of the buffer
     //typename std::vector<T>::iterator it = contents.begin(); // The current position of the "beginning" of the buffer
     // Functions
+};
+
+// A wrapper for an std::vector that allows python-like indexing (negative indexes, slicing, etc)
+template <typename T>
+class PythonicVector {
+public:
+    // Functions
+
+    // Bracket operator, allows negative indexes
+    T& operator [] (int index) {
+        if (index < 0) {
+            index += contents.size();
+        }
+        return contents[index];
+    }
+
+    // Parenthesis operator, allows slicing into sub-vectors non-inclusively (cannot use negative indexes)
+    PythonicVector<T> operator () (int start, int end) {
+        PythonicVector<T> new_vector;
+        for (int i = start; i < end; i++) {
+            new_vector.contents.push_back(contents[i]);
+        }
+        return new_vector;
+    }
+
+    // Vector overloads
+    void push_back(T element) {
+        contents.push_back(element);
+    }
+
+    void pop_back() {
+        contents.pop_back();
+    }
+
+    void clear() {
+        contents.clear();
+    }
+
+    void resize(int new_size) {
+        contents.resize(new_size);
+    }
+
+    void reserve(int new_size) {
+        contents.reserve(new_size);
+    }
+
+    // Return the size of the vector
+    int size() {
+        return contents.size();
+    }
+
+    // Returns contents.begin()
+    typename std::vector<T>::iterator begin() {
+        return contents.begin();
+    }
+
+    // Returns contents.end()
+    typename std::vector<T>::iterator end() {
+        return contents.end();
+    }
+
+    // Variables
+    std::vector<T> contents; // The contained data
 };
 
 ////////// SUPER-LONG DEFINES //////////

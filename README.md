@@ -4,7 +4,7 @@ A collection and standardization of utilities that I often re-implement.
 ## Important Functionality
 - Embeddable and flexible unit testing framework with native support for verbosity (including automatic file:line position) and program-wide summary
 - Defines for colored terminal output in bash-based terminals and streams.
-- Debug macros, such as printing variable data (code name, memory address, type, and value), in-code location (file:line), and compile time as native C++ data structures.
+- Debug macros, such as info/log/warning/error printing (only if DEBUG is defined), printing variable data (code name, memory address, type, and value), in-code location (file:line), and compile time as native C++ data structures.
 - Point2 and Point3 structures for coordinates
 - Ability to iterate over points within predefined lists, such as the points of characters in the Monogram font
 - Optional `Alexandria::` namespace encapsulation.
@@ -71,7 +71,7 @@ int main(int argc, char *argv[]) {
 double variable_name = 4.2;
 
 // Prints "variable_name @ 0x67ea68 (d) = 4.2"
-DEBUG(variable_name);
+INFO(variable_name);
 
 struct MyStruct {
     int index;
@@ -80,7 +80,7 @@ struct MyStruct {
 MyStruct my_obj(3, "hi");
 
 // Prints "my_obj @ 0x67ea5c (8MyStruct)"
-DEBUG_NOVALUE(my_obj);
+INFO_NOVALUE(my_obj);
 
 // Defining a stream operator allows printing of a structure's value
 std::ostream& operator << (std::ostream& out, const MyStruct& obj) {
@@ -89,10 +89,10 @@ std::ostream& operator << (std::ostream& out, const MyStruct& obj) {
 }
 
 // Prints "my_obj @ 0x67ea5c (8MyStruct) = 3: hi"
-DEBUG(my_obj);
+INFO(my_obj);
 
 // Prints "4 (i)"
-DEBUG_BASIC(4);
+INFO_BASIC(4);
 
 // Capture and print the location of this line (file:line) in the codebase
 //  and the date of last compilation
