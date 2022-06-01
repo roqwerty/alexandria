@@ -174,6 +174,10 @@ Functions:
             Executable directory: get_abs_path("./")
             Executable path: get_abs_path(std::string(argv[0]))
         returns std::string
+    save_pdf(const std::string& filepath, const std::string& data, bool use_line_numbers = false):
+        Saves a string of text as a PDF file
+            NOTE: use_line_numbers is not yet implemented
+        returns void
 
 
 Classes:
@@ -196,13 +200,7 @@ Classes:
 
 --- NOW ---
 String-based diff function
-A simple function to turn a string of text into a pretty text-based PDF (Courier for monospacing, perhaps line numbers, perhaps title header/page nums)
-    save_pdf()
-    Needed pre-parse info:
-        intelligent line numbers and word wrapping
-        length in bytes of all page streams
-        total number of pages
-        locations of everything in bytes within the file
+Add line numbers to save_pdf
 
 --- Future Work ---
 DEBUG-define-only log to file
@@ -1223,56 +1221,182 @@ void get_diff(const std::string& one, const std::string& two) {
 #define PDF_LINES_IN_PAGE 54 // Number of lines that fit on a page
 
 // Saves a PDF based off of the given input data to disk. Uses intelligent line wrapping and optionally line numbers
-void save_pdf(const std::string& data, const std::string& filepath, bool use_line_numbers = false) {
-    // Make a cleaned version of the data based on word wrapping
-    //std::vector<std::string> pages; // A collection of cleaned pages
-    //std::string page = ""; // The current page
-    std::vector<std::vector<std::string>> pages; // A collection of cleaned pages, composed of vectors of lines
+void save_pdf(const std::string& filepath, const std::string& data, bool use_line_numbers = false) {
+    // NOTE: This function really doesn't like unbalanced parentheses, so make sure you don't have any!
+    // Might be fixed in the future.
+    // Also use_line_numbers is currently unused...
+
+    std::vector<std::vector<std::string>> pages; // A collection of cleaned pages each composed of vectors of lines
     std::vector<std::string> alllines; // A collection of all lines to be split into pages
+
+    // Split the data into lines based on newlines and PDF_CHARS_BEFORE_WRAP
     int chars_in_line = 0; // Number of characters in the current line
-    int lines = 0; // Number of lines in this page
-    //int line_num = 1; // The line number of the current line in data
-
-    std::cout << "\n  ---  \nUNFINISHED\n  ---   " << std::endl;
-
-    /*// Clean the input
+    alllines.push_back(""); // Add an empty line to start
     for (char c : data) {
-        if (c == '\r') {} // Eat carriage returns
-        else if (c == '\n') {
-            if (lines < PDF_LINES_IN_PAGE) {
-                // Add to this page
-                page += "\n";
-                chars_in_line = 0;
-                lines++;
-            } else {
-                // Move on to next page
-                pages.push_back(page);
-                page = "";
-                chars_in_line = 0;
-                lines = 0;
-            }
+        if (c == '\n') {
+            // Newline, add to alllines
+            alllines.push_back("");
+            chars_in_line = 0;
         } else {
+            // Not a newline, add to the current line if length is less than defined above
             if (chars_in_line < PDF_CHARS_BEFORE_WRAP) {
-                page += c;
+                alllines[alllines.size()-1] += c;
                 chars_in_line++;
             } else {
-                // Add line with wrap
-                if (lines < PDF_LINES_IN_PAGE) {
-                    // Add to this page
-                    page += c + "\n";
-                    chars_in_line = 0;
-                    lines++;
-                } else {
-                    // Move on to next page
-                    pages.push_back(page);
-                    page = c + "";
-                    chars_in_line = 1;
-                    lines = 0;
-                }
+                // Add to the next line
+                alllines.push_back("");
+                alllines[alllines.size()-1] += c;
+                chars_in_line = 0;
+            }
         }
-    }*/
-    
+    }
+
+    // Split the lines into pages based on PDF_LINES_IN_PAGE
+    int lines_in_page = 0;
+    pages.push_back(std::vector<std::string>()); // Add an empty page to start
+    for (std::string line : alllines) {
+        if (lines_in_page < PDF_LINES_IN_PAGE) {
+            // Add to the current page
+            pages.back().push_back(line);
+            lines_in_page++;
+        } else {
+            // Add to the next page
+            pages.push_back(std::vector<std::string>());
+            pages.back().push_back(line);
+            lines_in_page = 1;
+        }
+    }
+
+    // Construct string-list of PDF page object references based on pages starting at object 5
+    std::string page_refs = "";
+    for (int i = 0; i < pages.size(); i++) {
+        page_refs += std::to_string(5 + 2*i) + " 0 R ";
+    }
+
     // Setup header information
+    std::string header =
+        "%PDF-1.3\n"
+        "1 0 obj\n"             // Object 1: Catalog
+        "<<\n"
+        "/Type /Catalog\n"
+        "/Pages 4 0 R\n"
+        ">>\n"
+        "endobj\n"
+        "2 0 obj\n"             // Object 2: ProcSet
+        "[ /PDF /Text ]\n"
+        "endobj\n"
+        "3 0 obj\n"             // Object 3: Font
+        "<<\n"
+        "/Type /Font\n"
+        "/Subtype /Type1\n"
+        "/Name /F1\n"
+        "/BaseFont /Courier\n"
+        "/Encoding /WinAnsiEncoding\n"
+        ">>\n"
+        "endobj\n"
+        "4 0 obj\n"             // Object 4: Pages
+        "<<\n"
+        "/Type /Pages\n"
+        "/Count " + std::to_string(pages.size()) + "\n"
+        "/Kids [ " + page_refs + "]\n"
+        "/MediaBox [ 0 0 612 792 ]\n"
+        ">>\n"
+        "endobj\n";
+    
+    // Create the variables that will keep track of total objects and their positions
+    // These are auto-populated with objects from the header
+    int total_objects = 4; // This is one less than the index of the last object
+    std::vector<int> object_positions = {0, 9, 58, 88, 193};
+    
+    // For each page, construct the two page objects and add them to the header
+    for (int i = 0; i < pages.size(); i++) {
+        std::string page_obj_source = std::to_string(5 + 2*i) + " 0 obj";
+        std::string page_content_source = std::to_string(5 + 2*i + 1) + " 0 obj";
+        std::string page_content_ref = std::to_string(5 + 2*i + 1) + " 0 R";
+
+        // Construct the page object
+        std::string page_obj =
+            page_obj_source + "\n"
+            "<<\n"
+            "/Type /Page\n"
+            "/Parent 4 0 R\n"
+            "/Resources\n"
+            "<<\n"
+            "/Font\n"
+            "<<\n"
+            "/F1 3 0 R\n"
+            ">>\n"
+            "/ProcSet 2 0 R\n"
+            ">>\n"
+            "/MediaBox [ 0 0 612 792 ]\n"
+            "/Contents " + page_content_ref + "\n"
+            ">>\n"
+            "endobj\n";
+        
+        // Add the page object to the header and update the object positions
+        header += page_obj;
+        total_objects++;
+        object_positions.push_back(object_positions.back() + page_obj.length());
+        
+        // Construct the page content stream
+        std::string page_content_stream =
+            "2 J\n"                     // Set line width to 2
+            "BT\n"                      // Begin text
+            "0 0 0 rg\n"                // Set the color to black
+            "/F1 0010 Tf\n"             // Set the font to Courier and size 10
+            "72.0000 720.0000 Td\n"     // Move to 72, 720
+            "12 TL\n";                  // Set the line spacing to 12
+        for (std::string line : pages[i]) {
+            // Add each line to the page content stream
+            page_content_stream += "(" + line + ") '\n";
+        }
+        page_content_stream += "ET\n"; // End text
+
+        // Construct the page contents object
+        std::string page_contents =
+            page_content_source + "\n"
+            "<< /Length " + std::to_string(page_content_stream.size()) + " >>\n"
+            "stream\n" + page_content_stream + "endstream\nendobj\n";
+        
+        // Add the page contents object to the header and update the object positions
+        header += page_contents;
+        total_objects++;
+        object_positions.push_back(object_positions.back() + page_contents.length());
+    }
+
+    // Construct a list of padded object positions
+    std::vector<std::string> padded_object_positions;
+    for (int p : object_positions) {
+        std::string pos = std::to_string(p);
+        while (pos.length() < 10) {
+            pos = "0" + pos;
+        }
+        padded_object_positions.push_back(pos);
+    }
+
+    // Construct the cross-reference table
+    std::string xref =
+        "xref\n"
+        "0 " + std::to_string(total_objects+1) + "\n"
+        "0000000000 65535 f \n";
+    for (std::string pos : padded_object_positions) {
+        xref += pos + " 00000 n \n";
+    }
+    xref +=
+        "trailer\n"
+        "<<\n"
+        "/Size " + std::to_string(total_objects+1) + "\n"
+        "/Root 1 0 R\n"
+        ">>\n"
+        "startxref\n" + std::to_string(header.size()) + "\n"
+        "%%EOF\n";
+    header += xref;
+
+    // Save the PDF file
+    std::ofstream outfile;
+    outfile.open(filepath);
+    outfile << header;
+    outfile.close();
 }
 
 ////////// CLASSES //////////

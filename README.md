@@ -18,6 +18,7 @@ A collection and standardization of utilities that I often re-implement.
 - Many, many easing functions, as well as a Tween helper class to make use of them as a near-native data structure.
 - Simple loading bar streaming function with modular support for titles, progress bars, and (completed/total) counts.
 - Generalized extraction of value vectors and maps from C++ strings (with support for JSON lists and maps, CSV/TSV files, and .ini files, as well as many others through use of custom delimiters and ignored characters)
+- Ability to save a string as a PDF file with semi-intelligent word wrapping and page breaking
 - A wrapper for `std::vector` that makes it behave as a circular buffer data structure.
 - Really, *really* fast random boolean generator.
 
@@ -227,6 +228,18 @@ std::string ini_input = "one = 1\n two = 2\n      three = 3";
 for (auto kv : extract_map(ini_input)) {
     std::cout << "Key " << kv.first << " is " << kv.second << std::endl;
 }
+```
+
+### Saving a string as a PDF file
+```c++
+// The function will automatically break long lines into multiple lines
+//  and large collections of lines into separate pages
+std::string contents = "";
+for (int i = 0; i < 100; i++) {
+    contents += "This is a test string.\n";
+}
+
+save_pdf("test.pdf", contents);
 ```
 
 ### Circular Buffers
