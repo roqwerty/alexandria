@@ -1,12 +1,16 @@
 # Alexandria
+
+![Library](library.png?raw=true "Alexandria Library")
+
 A collection and standardization of utilities that I often re-implement.
 
 ## Important Functionality
-- Embeddable and flexible unit testing framework with native support for verbosity (including automatic file:line position) and program-wide summary
+- Embeddable and flexible unit testing framework with native support for verbosity (including automatic file:line:function position) and program-wide summary.
 - Defines for colored terminal output in bash-based terminals and streams.
 - Debug macros, such as info/log/warning/error printing (only if DEBUG is defined), printing variable data (code name, memory address, type, and value), in-code location (file:line), and compile time as native C++ data structures.
-- Point2 and Point3 structures for coordinates
-- Ability to iterate over points within predefined lists, such as the points of characters in the Monogram font
+- Timing macros, able to print ms-level accuracy for execution times of code sections.
+- Point2 and Point3 structures for coordinates.
+- Ability to iterate over points within predefined lists, such as the points of characters in the Monogram font.
 - Optional `Alexandria::` namespace encapsulation.
 - Vector3 implementation with operator addition, subtraction, and scalar multiplication/division, as well as magnitude(), normalize(), cross(), dot(), and angle() functions. additionally, some basic matrix integration through 2D float vectors.
 - Standardization of RGB Color, RGBA ColorAlpha, and HSV ColorHSV structures.
@@ -17,12 +21,14 @@ A collection and standardization of utilities that I often re-implement.
 - General-purpose simple structure serial saving/loading, as well as native vector-of-things support.
 - Many, many easing functions, as well as a Tween helper class to make use of them as a near-native data structure.
 - Simple loading bar streaming function with modular support for titles, progress bars, and (completed/total) counts.
-- Generalized extraction of value vectors and maps from C++ strings (with support for JSON lists and maps, CSV/TSV files, and .ini files, as well as many others through use of custom delimiters and ignored characters)
-- Ability to save a string as a PDF file with semi-intelligent word wrapping and page breaking
+- Generalized extraction of value vectors and maps from C++ strings (with support for JSON lists and maps, CSV/TSV files, and .ini files, as well as many others through use of custom delimiters and ignored characters).
+- Ability to save a string as a PDF file with semi-intelligent word wrapping and page breaking.
+- A Linux-like diff function for finding the minimum amount of different lines between two strings.
 - A wrapper for `std::vector` that makes it behave as a circular buffer data structure.
+- A wrapper for `std::vector` that makes it behave like a pythonic vector with support for slicing and negative indexes.
 - Really, *really* fast random boolean generator.
 
-For more detail, as well as a current list of included structs, functions, and classes, see the comment at the top of `alexandria.h`.
+For more detail, as well as a current list of included structs, functions, and classes, see the massive comment/documentation at the top of `alexandria.h`.
 
 ## Implementation Detail and Examples
 
@@ -95,7 +101,7 @@ INFO(my_obj);
 // Prints "4 (i)"
 INFO_BASIC(4);
 
-// Capture and print the location of this line (file:line) in the codebase
+// Capture and print the location of this line (file:line:function) in the codebase
 //  and the date of last compilation
 std::string location = LOCATION;
 std::string build_time = COMPILE_TIME;
@@ -211,6 +217,22 @@ for (int i = 0; i < 10000; i++) {
 }
 ```
 
+### Timing Code
+```c++
+TIME(
+    std::cout << "This section of code will be timed" << std::endl;
+    std::cout << "and the time (ms) will be printed" << std::endl;
+    std::cout << "as well as the location of the block" << std::endl;
+)
+// Prints: Ended timed section @ file.cpp:20:main in 2ms
+
+TIME_NAMED("Code Section #2",
+    std::cout << "In addition to timing this code, the" << std::endl;
+    std::cout << "title 'Code Section #2' will also print" << std::endl;
+)
+// Prints: Ended timed section "Code Section #2" @ file.cpp:26:main in 2ms
+```
+
 ### Value Vector and Map Extraction from String
 ```c++
 // Extracting string vector from JSON-styled input
@@ -254,6 +276,24 @@ cs++; // Buffer from zero: ["Two", "One", "Three"]
 for (int i = 0; i < cs.size() * 2; i++) {
     std::cout << cs[i] << std::endl;
 }
+```
+
+### Pythonic Vectors
+```c++
+PythonicVector<int> pv;
+pv.push_back(1);
+pv.push_back(2);
+pv.push_back(3);
+pv.push_back(4);
+pv.push_back(5);
+
+std::cout << "1: " << pv[1] << std::endl;   // 1: 2
+std::cout << "-1: " << pv[-1] << std::endl; // -1: 5
+std::cout << "4: " << pv[4] << std::endl;   // 4: 5
+PRINT_VECTOR(pv)                            // pv = 1 2 3 4 5
+std::cout << "slicing" << std::endl;
+PRINT_VECTOR(pv(1, 4))                      // pv(1, 4) = 2 3 4
+PRINT_VECTOR(pv(1, -1))                     // pv(1, -1) = 2 3 4
 ```
 
 ## Licensing

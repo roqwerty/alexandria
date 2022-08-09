@@ -31,7 +31,7 @@ Released freely under the Unlicense, except where sources are cited.
 // Compilation Settings
 //#define USE_ALEXANDRIA_NAMESPACE // If uncommented or otherwise defined, will make ALL of the following (except macros and defines) part of the Alexandria:: namespace
 //#define USE_ALEXANDRIA_COLORLESS // Use colorless testing and output for other functions, useful for OSs like Windows that just don't play nice with color :<
-//#define DEBUG // If uncommented, logs, errors, and warnings will be printed to the console
+//#define DEBUG // If uncommented, logs, errors, and warnings will be printed to the console (they print in DEBUG mode, and are silent otherwise)
 
 /*
 The purpose of the Alexandria library is to collect and standardize functions and utilities that I find myself using somewhat often
@@ -51,7 +51,9 @@ Macros / Defines:
     COMPILE_TIME: A std::string containing the time and date of program compilation
     MONO_<CHARACTER/SYMBOL>: An array of Point2s referring to the (x,y) locations of color for that character in the monospace font. Origin is top-left. Dimensions: 5px ascender, 5x5px lowercase, 2px descender, add 1px space
     TIME(x): Times whatever takes place within the parentheses and prints the elapsed time to the console
+    TIME_NAMED(n, x): Times whatever takes place within the parentheses and prints the elapsed time to the console with the name n
     BLACK, WHITE, RED, GREEN, BLUE, YELLOW, CYAN, MAGENTA, GRAY: Color struct definitions for basic colors
+    PRINT_VECTOR(x): Prints the contents of a vector x to the console as well as the name of the vector
 
 Debug Printing: (NOTE That these will only print if DEBUG is defined. Else, they compile as nothing)
     LOG(x): Prints the string x as a blue log message
@@ -178,6 +180,9 @@ Functions:
         Saves a string of text as a PDF file
             NOTE: use_line_numbers is not yet implemented
         returns void
+    diff(const std::string& a, const std::string& b):
+        Prints the difference between two strings. Format is specified above function header
+        returns void
 
 
 Classes:
@@ -194,15 +199,18 @@ Classes:
     PythonicVector<type>: A wrapper for std::vector that allows python-like indexing and slicing natively
         Supported operations:
             [index] (indexing): Access the element at offset within the vector. Supports negative indexes.
-            (start, end) (slicing): Access the elements between the two offsets within the vector, non-inclusive.
+            (start, end) (slicing): Access the elements between the two offsets within the vector, non-inclusive. Supports negative indexes.
 
 --- Recently Completed And Undocumented ---
 
 --- NOW ---
-String-based diff function
-Add line numbers to save_pdf
+plasmamap like heatmap, or perhaps have support for custom colors in heatmap and default predefinitions for color ranges
+Add line number support to save_pdf
 
 --- Future Work ---
+Add step support for PythonicVector slicing
+A function to fetch data from a URL and return it as a string
+A reshape function for 2D/3D arrays (array -> 1D list)
 DEBUG-define-only log to file
 A rate-based main loop and callback strucure that can activate functions based on a rate in Hz
 Multidimensional vector extraction (copy work from HCR class)
@@ -253,6 +261,7 @@ Numpy-like zeros and ones functions for making vectors automatically of differen
 #include <iomanip> // std::setprecision
 #include <stdlib.h> // Pathnames and other utilities
 #include <chrono> // Time-based functions
+#include <algorithm> // Because having a "reverse" function is handy
 
 
 ////////// MACROS //////////
@@ -302,7 +311,7 @@ Numpy-like zeros and ones functions for making vectors automatically of differen
 #define INFO(x) std::cout << #x << " @ " << &x <<  " (" << typeid(x).name() << ") = " << x << std::endl;
 #define INFO_NOVALUE(x) std::cout << #x << " @ " << &x << " (" << typeid(x).name() << ")" << std::endl;
 #define INFO_BASIC(x) std::cout << #x << " (" << typeid(x).name() << ")" << std::endl;
-#define LOCATION (std::string)__FILE__ + ":" + std::to_string(__LINE__) + ":" + std::to_string(__func__)
+#define LOCATION (std::string)__FILE__ + ":" + std::to_string(__LINE__) + ":" + (std::string)__func__
 #define COMPILE_TIME (std::string)(__TIME__) + " on " + (std::string)(__DATE__)
 
 // Debug printing macros
@@ -337,7 +346,8 @@ std::vector<std::string> TESTS_FAILURES;
 #define TEST_SUMMARY() std::cout << T_CYAN << "+--------------+\n| TEST SUMMARY |\n+--------------+\n" << T_GREEN << "Passed " << TESTS_SUCCESSFUL << "/" << TESTS_TOTAL << " tests (" << (TESTS_SUCCESSFUL/(float)TESTS_TOTAL)*100.0 << "%)" << T_RESET << std::endl; if (TESTS_FAILURES.size() > 0) {std::cout << T_RED << "Failed tests:" << T_RESET << std::endl; for (const std::string& s : TESTS_FAILURES) {std::cout << "    " << s << std::endl;}}
 
 // Other Macros
-#define TIME(x) {auto start = std::chrono::high_resolution_clock::now(); x; auto end = std::chrono::high_resolution_clock::now(); std::cout << T_CYAN << "+-----------------+\n|    TIME TEST    |\n" << #x << "\n+-----------------+\n" << T_GREEN << "Time taken: " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << " microseconds" << T_RESET << std::endl;}
+#define TIME(x) {auto start = std::chrono::high_resolution_clock::now(); x; auto end = std::chrono::high_resolution_clock::now(); std::cout << T_CYAN << "Ended timed section @ " << LOCATION << " in " << T_GREEN << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << T_RESET << std::endl;}
+#define TIME_NAMED(n, x) {auto start = std::chrono::high_resolution_clock::now(); x; auto end = std::chrono::high_resolution_clock::now(); std::cout << T_CYAN << "Ended timed section \"" << n << "\" @ " << LOCATION << " in " << T_GREEN << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << T_RESET << std::endl;}
 
 // Begin Alexandria namespace
 #ifdef USE_ALEXANDRIA_NAMESPACE
@@ -1399,6 +1409,93 @@ void save_pdf(const std::string& filepath, const std::string& data, bool use_lin
     outfile.close();
 }
 
+// Prints a linux-like diff between two input strings using string transformation as a guide
+//  (finding the shortest path from one string to another using only insertions, deletions, and substitutions)
+// Output format:
+// "pagea:pageb operation line(s)"
+//  where pagea is the active line in the first string, pageb is the active line in the second string,
+//  operation is the operation that was performed on the active line, and line(s) is the active line itself.
+//  The operation is one of the following:
+//   ? Modification
+//   + Insertion
+//   - Deletion
+//   = Equal
+void diff(const std::string& a, const std::string& b) {
+    // First, split the strings into vectors of lines that we will treat as individual characters for the rest of the algorithm
+    std::vector<std::string> a_lines = split(a, '\n');
+    std::vector<std::string> b_lines = split(b, '\n');
+
+    // Next, create and initialize a matrix of edit distances between each pair of lines
+    std::vector<std::vector<int>> edit_distances(a_lines.size()+ 1, std::vector<int>(b_lines.size() + 1, 0));
+    for (int i = 0; i < a_lines.size(); i++) {
+        edit_distances[i][0] = i;
+    }
+    for (int j = 0; j < b_lines.size(); j++) {
+        edit_distances[0][j] = j;
+    }
+
+    // Using string transformation as a guide, compute the edit distances between each pair of lines
+    // Addition, deletion, and substitution are the only edit operations that are allowed and all cost 1
+    for (int i = 1; i <= a_lines.size(); i++) {
+        for (int j = 1; j <= b_lines.size(); j++) {
+            if (a_lines[i-1] == b_lines[j-1]) {
+                edit_distances[i][j] = edit_distances[i-1][j-1];
+            } else {
+                edit_distances[i][j] = 1 + std::min(edit_distances[i-1][j], std::min(edit_distances[i][j-1], edit_distances[i-1][j-1]));
+            }
+        }
+    }
+
+    /*// Debug, print the edit distance matrix
+    for (int i = 0; i < a_lines.size(); i++) {
+        for (int j = 0; j < b_lines.size(); j++) {
+            std::cout << edit_distances[i][j] << " ";
+        }
+        std::cout << "\n";
+    }*/
+
+    // Now that we have the edit distance matrix, we can use it to reconstruct the cheapest path from bottom right to top left
+    // as well as the type of edit operation that each step in the path was. This is stored in a vector of outputs along with the line number,
+    // then reversed and printed to the console
+    int len1 = a_lines.size();
+    int len2 = b_lines.size();
+    std::vector<std::pair<std::vector<int>, std::string>> outputs;
+    while (len1 && len2) {
+        if (a_lines[len1-1] == b_lines[len2-1]) {
+            outputs.push_back(std::make_pair((std::vector<int>){len1, len2}, "=  " + a_lines[len1-1]));
+            len1--;
+            len2--;
+        } else if (edit_distances[len1][len2] == edit_distances[len1-1][len2-1] + 1) {
+            // Modification
+            outputs.push_back(std::make_pair((std::vector<int>){len1, len2}, "?  " + a_lines[len1-1] + "\n       " + b_lines[len2-1]));
+            len1--;
+            len2--;
+        } else if (edit_distances[len1][len2] == edit_distances[len1-1][len2] + 1) {
+            // Deletion
+            outputs.push_back(std::make_pair((std::vector<int>){len1, len2}, "-  " + a_lines[len1-1]));
+            len1--;
+        } else {
+            // Insertion
+            outputs.push_back(std::make_pair((std::vector<int>){len1, len2}, "+  " + b_lines[len2-1]));
+            len2--;
+        }
+    }
+    while (len1) {
+        // Final deletions
+        outputs.push_back(std::make_pair((std::vector<int>){len1, len2}, "-  " + a_lines[len1-1]));
+        len1--;
+    }
+    while (len2) {
+        // Final insertions
+        outputs.push_back(std::make_pair((std::vector<int>){len1, len2}, "+  " + b_lines[len2-1]));
+        len2--;
+    }
+    // Print the outputs to the console
+    for (int i = outputs.size() - 1; i >= 0; i--) {
+        std::cout << outputs[i].first[0] << ":" << outputs[i].first[1] << " " << outputs[i].second << "\n";
+    }
+}
+
 ////////// CLASSES //////////
 
 // A really, really fast boolean value generator with pretty random distribution
@@ -1655,8 +1752,20 @@ public:
         return contents[index];
     }
 
-    // Parenthesis operator, allows slicing into sub-vectors non-inclusively (cannot use negative indexes)
+    // Parenthesis operator, allows slicing into sub-vectors non-inclusively (can also use negative indexes)
     PythonicVector<T> operator () (int start, int end) {
+        // Fix negative indexes and make valid
+        if (start < 0) {
+            start += contents.size();
+        }
+        if (end < 0) {
+            end += contents.size();
+        }
+        if (start > end) {
+            int temp = start;
+            start = end;
+            end = temp;
+        }
         PythonicVector<T> new_vector;
         for (int i = start; i < end; i++) {
             new_vector.contents.push_back(contents[i]);
